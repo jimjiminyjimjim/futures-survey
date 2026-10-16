@@ -1,0 +1,18 @@
+# Repo gitleaks config: inherit the global rules, plus one narrow exception.
+# The pre-commit hook prefers this file over ~/.config/gitleaks/gitleaks.toml.
+title = "questionaire"
+
+[extend]
+path = "/Users/jamesrhodes/.config/gitleaks/gitleaks.toml"
+
+# Email addresses here are intentional, not leaked PII:
+# - supabase/migrations: the seeded admin emails (AUTH-06)
+# - tests: eligibility / access-control fixtures (incl. the real admin rows
+#   the tests assert must never be touched)
+[[allowlists]]
+description = "Intentional emails in seed migrations and test fixtures"
+targetRules = ["pii-email"]
+paths = [
+  '''^supabase/migrations/''',
+  '''^tests/''',
+]

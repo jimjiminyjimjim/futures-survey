@@ -1,0 +1,182 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --color-pres-page: var(--pres-page);
+  --color-pres-surface: var(--pres-surface);
+  --color-pres-ink: var(--pres-ink);
+  --color-pres-ink-secondary: var(--pres-ink-secondary);
+  --color-pres-ink-muted: var(--pres-ink-muted);
+  --color-pres-border: var(--pres-border);
+  /* Presentation Mode (Phase 4) forced-dark canvas chrome tokens, exposed
+     above as Tailwind utilities (bg-pres-page, text-pres-ink, etc). Chart
+     mark tokens (pres-agreement-N and pres-familiarity-N) are referenced
+     directly through ChartConfig, not through Tailwind classes, so they
+     are not aliased here.
+     NB: comment placed AFTER the declarations above, not before. A
+     Tailwind v4/Turbopack at-theme comment-parsing quirk drops utility
+     generation for whichever declaration immediately follows a
+     multi-line comment inside an at-theme block (confirmed by moving a
+     throwaway placeholder token around). Also confirmed that an
+     apostrophe, or a star-slash sequence, anywhere inside such a comment
+     breaks the whole file with a CSS syntax error (a star-slash always
+     closes the comment early, even mid-word). Keep any future comment
+     here trailing, not leading, and free of apostrophes or star-slash. */
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  /* Darkened from the shadcn default oklch(0.708 0 0): the lighter value's
+     solid focus-visible:border-ring change only reached ~2.58:1 against
+     this app's white/near-white page and card backgrounds, short of WCAG
+     1.4.11's 3:1 non-text contrast minimum for a focus indicator (found by
+     tests/e2e/survey-contrast.spec.ts). Reuses the existing
+     --muted-foreground step (0.556) for palette consistency rather than
+     introducing a new value — comfortably clears 3:1 (~4.7:1) against
+     both --background/--card (oklch 1) and the bg-zinc-50 page wrapper. */
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Presentation Mode (Phase 4), 04-UI-SPEC.md "Color" — forced-dark
+     projector canvas. Declared once here (not per-theme) since the deck
+     always renders dark regardless of the admin's OS/browser preference. */
+  --pres-page: #0d0d0d;
+  --pres-surface: #1a1a19;
+  --pres-ink: #ffffff;
+  --pres-ink-secondary: #c3c2b7;
+  --pres-ink-muted: #898781;
+  --pres-border: rgba(255, 255, 255, 0.1);
+
+  /* Agreement chart (5-segment diverging). */
+  --pres-agreement-1: #e66767;
+  --pres-agreement-2: #e66767b3;
+  --pres-agreement-3: #383835;
+  --pres-agreement-4: #6da7ec;
+  --pres-agreement-5: #3987e5;
+
+  /* Familiarity chart (4-segment ordered). */
+  --pres-familiarity-1: #9ec5f4;
+  --pres-familiarity-2: #6da7ec;
+  --pres-familiarity-3: #3987e5;
+  --pres-familiarity-4: #184f95;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
