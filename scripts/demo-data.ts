@@ -4,10 +4,21 @@ import { existsSync } from "fs";
 /**
  * Demo data for the live Supabase project (dev == live, project
  * yxjfpdzbqcaczvsbuiws). Creates 20 `demo.NN@example.com` participants with
- * fully-submitted (18) or partial (2) Round 1 responses, and a clean
- * removal path. Never touches any other user, admin_emails, or
- * allowed_domains beyond the temporary example.com add/remove this script
- * performs around user creation.
+ * responses for EVERY session (round) of the survey: session 1 gets 18
+ * fully-submitted + 2 partial responses, sessions 2 and 3 get 20 submitted.
+ * Answers cover every question kind (scale, choice_one, choice_multi,
+ * choice_exact, prediction — ~70% guess, the rest skip — rating, two_ended,
+ * choice_up_to). Writes go through the service role, which bypasses RLS
+ * (participant writes are limited to the open round); the answers/responses
+ * guard triggers still validate every value and the submit completeness
+ * rule. After every round is seeded, a deterministic ~40% of demo users get
+ * a `results_consent` row (consented: true) — the trigger stamps the
+ * timestamps. Also a clean removal path: `remove()` deletes demo users'
+ * responses/answers explicitly, then deletes the auth users themselves —
+ * `results_consent` rows cascade automatically (`on delete cascade` on
+ * `user_id`), so there's nothing extra to clean up there. Never touches any
+ * other user, admin_emails, or allowed_domains beyond the temporary
+ * example.com add/remove this script performs around user creation.
  *
  * Usage:
  *   yarn demo:seed
@@ -49,6 +60,8 @@ const DEMO_USER_COUNT = 20;
 const DEMO_EMAIL_PATTERN = /^demo\.(\d{2})@example\.com$/;
 // Deterministic across reruns — never derived from Date.now() or Math.random().
 const SEED = 20261015;
+// Matches src/lib/survey/messages.ts RESULTS_CONSENT_VERSION.
+const RESULTS_CONSENT_VERSION = "2026-10-18";
 
 function demoEmails(): string[] {
   return Array.from({ length: DEMO_USER_COUNT }, (_, i) =>
@@ -119,11 +132,38 @@ interface ScaleRange {
   max: number;
 }
 
+type QuestionKind =
+  | "scale"
+  | "choice_one"
+  | "choice_multi"
+  | "choice_exact"
+  | "prediction"
+  | "rating"
+  | "two_ended"
+  | "choice_up_to";
+
+interface ChoiceOption {
+  value: number;
+  label: string;
+  exclusive?: boolean;
+}
+
 interface StatementRow {
   id: string;
   key: string;
   sectionId: string;
   scaleKey: string;
+  kind: QuestionKind;
+  options: ChoiceOption[];
+  choiceCount: number | null;
+  optional: boolean;
+}
+
+interface RoundRow {
+  id: string;
+  roundNumber: number;
+  sessionNumber: number;
+  title: string;
 }
 
 type ProfileType = "skew_agree" | "skew_disagree" | "polarised" | "neutral";
@@ -202,6 +242,126 @@ function sampleValue(
   return clampInt(profile.centre + bias + noise, range.min, range.max);
 }
 
+/** Deterministic per-option popularity weights for a choice question. */
+function optionWeights(statementKey: string, options: ChoiceOption[]): number[] {
+  const rng = rngFor(`option-weights:${statementKey}`);
+  return options.map((o) => (o.exclusive ? 0.25 : 0.2 + rng() * 1.6));
+}
+
+function weightedPick(weights: number[], rng: () => number): number {
+  const total = weights.reduce((a, b) => a + b, 0);
+  let roll = rng() * total;
+  for (let i = 0; i < weights.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) {
+      return i;
+    }
+  }
+  return weights.length - 1;
+}
+
+function sampleChoiceOne(s: StatementRow, userIndex: number): number {
+  const rng = rngFor(`choice-one:${s.key}:${userIndex}`);
+  return s.options[weightedPick(optionWeights(s.key, s.options), rng)].value;
+}
+
+/** choice_exact: weighted sample of exactly choiceCount distinct options. */
+function sampleChoiceExact(s: StatementRow, userIndex: number): number[] {
+  const rng = rngFor(`choice-exact:${s.key}:${userIndex}`);
+  const count = s.choiceCount ?? 1;
+  const pool = s.options.map((o, i) => ({
+    value: o.value,
+    weight: optionWeights(s.key, s.options)[i],
+  }));
+  const picked: number[] = [];
+  while (picked.length < count && pool.length > 0) {
+    const idx = weightedPick(
+      pool.map((p) => p.weight),
+      rng
+    );
+    picked.push(pool.splice(idx, 1)[0].value);
+  }
+  return picked.sort((a, b) => a - b);
+}
+
+/**
+ * choice_multi: each non-exclusive option independently with a
+ * per-option probability; nobody who picked something also picks the
+ * exclusive option ("None of these"), and anyone who picked nothing gets
+ * it (or, if the question has no exclusive option, one weighted pick).
+ */
+function sampleChoiceMulti(s: StatementRow, userIndex: number): number[] {
+  const rng = rngFor(`choice-multi:${s.key}:${userIndex}`);
+  const weights = optionWeights(s.key, s.options);
+  const picked = s.options
+    .filter((o, i) => !o.exclusive && rng() < Math.min(0.85, weights[i] * 0.35))
+    .map((o) => o.value);
+  if (picked.length > 0) {
+    return picked.sort((a, b) => a - b);
+  }
+  const exclusive = s.options.find((o) => o.exclusive);
+  if (exclusive) {
+    return [exclusive.value];
+  }
+  return [s.options[weightedPick(weights, rng)].value];
+}
+
+/** ~70% of people guess (0..100), the rest skip (null). */
+function samplePrediction(s: StatementRow, userIndex: number): number | null {
+  const rng = rngFor(`prediction:${s.key}:${userIndex}`);
+  if (rng() >= 0.7) {
+    return null;
+  }
+  return clampInt(48 + gaussian(rng) * 20, 0, 100);
+}
+
+/** rating (0..10): a per-key centre in ~1.5..8.5, plus user bias and noise. */
+function sampleRating(s: StatementRow, userIndex: number): number {
+  const centreRng = rngFor(`rating-centre:${s.key}`);
+  const centre = 1.5 + centreRng() * 7;
+  const rng = rngFor(`rating:${s.key}:${userIndex}`);
+  const noise = gaussian(rng) * 1.1;
+  const bias = userBias(userIndex) * 0.8;
+  return clampInt(centre + bias + noise, 0, 10);
+}
+
+/** two_ended (0..100): centred around the midpoint, with noise. */
+function sampleTwoEnded(s: StatementRow, userIndex: number): number {
+  const rng = rngFor(`two-ended:${s.key}:${userIndex}`);
+  const noise = gaussian(rng) * 16;
+  const bias = userBias(userIndex) * 8;
+  return clampInt(45 + bias + noise, 0, 100);
+}
+
+/**
+ * choice_up_to: ~10% pick the exclusive option alone; everyone else gets a
+ * weighted sample, without replacement, of 1..choiceCount non-exclusive
+ * options, sorted ascending.
+ */
+function sampleChoiceUpTo(s: StatementRow, userIndex: number): number[] {
+  const rng = rngFor(`choice-up-to:${s.key}:${userIndex}`);
+  const exclusive = s.options.find((o) => o.exclusive);
+  if (exclusive && rng() < 0.1) {
+    return [exclusive.value];
+  }
+  const max = s.choiceCount ?? 1;
+  const countRng = rngFor(`choice-up-to-count:${s.key}:${userIndex}`);
+  const nonExclusive = s.options.filter((o) => !o.exclusive);
+  const count = Math.max(1, Math.min(max, Math.ceil(countRng() * max)));
+  const weights = optionWeights(s.key, nonExclusive);
+  const pool = nonExclusive.map((o, i) => ({ value: o.value, weight: weights[i] }));
+  const picked: number[] = [];
+  const pickRng = rngFor(`choice-up-to-pick:${s.key}:${userIndex}`);
+  while (picked.length < count && pool.length > 0) {
+    const idx = weightedPick(
+      pool.map((p) => p.weight),
+      pickRng
+    );
+    picked.push(pool.splice(idx, 1)[0].value);
+  }
+  return picked.sort((a, b) => a - b);
+}
+
 /** Varies each response's started time across the last ~4 days. */
 function startedAtFor(userIndex: number): string {
   const rng = rngFor(`started-at:${userIndex}`);
@@ -274,6 +434,22 @@ async function fetchScaleRanges(
   return ranges;
 }
 
+async function fetchSurveyRounds(client: AdminClient): Promise<RoundRow[]> {
+  const { data, error } = await client
+    .from("rounds")
+    .select("id, round_number, session_number, title")
+    .order("session_number");
+  if (error) {
+    throw error;
+  }
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    roundNumber: r.round_number as number,
+    sessionNumber: r.session_number as number,
+    title: r.title as string,
+  }));
+}
+
 async function fetchRoundStatements(
   client: AdminClient,
   roundId: string
@@ -291,7 +467,7 @@ async function fetchRoundStatements(
 
   const { data: statements, error: statementsError } = await client
     .from("statements")
-    .select("id, key, section_id")
+    .select("id, key, section_id, kind, options, choice_count, optional")
     .eq("round_id", roundId)
     .order("key");
   if (statementsError) {
@@ -303,12 +479,211 @@ async function fetchRoundStatements(
     key: s.key as string,
     sectionId: s.section_id as string,
     scaleKey: scaleKeyBySection.get(s.section_id as string) ?? "agreement",
+    kind: s.kind as QuestionKind,
+    options: (s.options as ChoiceOption[] | null) ?? [],
+    choiceCount: (s.choice_count as number | null) ?? null,
+    optional: s.optional as boolean,
   }));
 }
 
 // ---------------------------------------------------------------------------
 // Seed
 // ---------------------------------------------------------------------------
+
+function answerRowFor(
+  s: StatementRow,
+  userIndex: number,
+  profiles: Map<string, StatementProfile>,
+  scaleRanges: Map<string, ScaleRange>
+): { value: number | null; choice_values: number[] | null } | null {
+  switch (s.kind) {
+    case "scale": {
+      const profile = profiles.get(s.key);
+      if (!profile) {
+        throw new Error(`No profile computed for statement ${s.key}`);
+      }
+      const range = scaleRanges.get(s.scaleKey) ?? { min: 1, max: 5 };
+      return { value: sampleValue(profile, range, userIndex, s.key), choice_values: null };
+    }
+    case "choice_one":
+      return { value: sampleChoiceOne(s, userIndex), choice_values: null };
+    case "choice_multi":
+      return { value: null, choice_values: sampleChoiceMulti(s, userIndex) };
+    case "choice_exact":
+      return { value: null, choice_values: sampleChoiceExact(s, userIndex) };
+    case "prediction": {
+      const guess = samplePrediction(s, userIndex);
+      return guess == null ? null : { value: guess, choice_values: null };
+    }
+    case "rating":
+      return { value: sampleRating(s, userIndex), choice_values: null };
+    case "two_ended":
+      return { value: sampleTwoEnded(s, userIndex), choice_values: null };
+    case "choice_up_to":
+      return { value: null, choice_values: sampleChoiceUpTo(s, userIndex) };
+  }
+}
+
+async function seedRound(
+  client: AdminClient,
+  round: RoundRow,
+  emails: string[],
+  userIdByEmail: Map<string, string>,
+  scaleRanges: Map<string, ScaleRange>,
+  partialEmails: Set<string>
+): Promise<void> {
+  const statements = await fetchRoundStatements(client, round.id);
+  if (statements.length === 0) {
+    console.log(`Skip round ${round.roundNumber} (no statements).`);
+    return;
+  }
+
+  const profiles = new Map<string, StatementProfile>(
+    statements
+      .filter((s) => s.kind === "scale")
+      .map((s) => [
+        s.key,
+        profileFor(
+          s.key,
+          s.scaleKey,
+          scaleRanges.get(s.scaleKey) ?? { min: 1, max: 5 }
+        ),
+      ])
+  );
+
+  const { data: existingResponses, error: existingResponsesError } =
+    await client.from("responses").select("id, user_id").eq("round_id", round.id);
+  if (existingResponsesError) {
+    throw existingResponsesError;
+  }
+  const userIdsWithResponse = new Set(
+    (existingResponses ?? []).map((r) => r.user_id as string)
+  );
+
+  let submittedCount = 0;
+  let partialCount = 0;
+
+  for (let i = 0; i < emails.length; i++) {
+    const email = emails[i];
+    const userId = userIdByEmail.get(email);
+    if (!userId) {
+      throw new Error(`No auth user id resolved for ${email}`);
+    }
+    if (userIdsWithResponse.has(userId)) {
+      console.log(`Skip (response exists): ${email} round ${round.roundNumber}`);
+      continue;
+    }
+
+    const userIndex = i + 1;
+    const isPartial = partialEmails.has(email);
+    const startedAt = startedAtFor(userIndex + round.roundNumber * 100);
+
+    const { data: responseRow, error: responseError } = await client
+      .from("responses")
+      .insert({ round_id: round.id, user_id: userId, created_at: startedAt })
+      .select("id")
+      .single();
+    if (responseError || !responseRow) {
+      throw responseError ?? new Error(`Failed to create response for ${email}`);
+    }
+    const responseId = responseRow.id as string;
+
+    let statementsToAnswer = statements;
+    if (isPartial) {
+      const countRng = rngFor(`partial-count:${round.roundNumber}:${userIndex}`);
+      const answerCount = Math.max(
+        1,
+        Math.round(statements.length * (0.3 + countRng() * 0.3))
+      );
+      statementsToAnswer = seededSampleWithoutReplacement(
+        statements,
+        answerCount,
+        rngFor(`partial-pick:${round.roundNumber}:${userIndex}`)
+      );
+    }
+
+    const answerRows = statementsToAnswer.flatMap((s) => {
+      const payload = answerRowFor(s, userIndex, profiles, scaleRanges);
+      return payload
+        ? [
+            {
+              response_id: responseId,
+              round_id: round.id,
+              statement_id: s.id,
+              ...payload,
+            },
+          ]
+        : [];
+    });
+
+    const { error: answersError } = await client.from("answers").insert(answerRows);
+    if (answersError) {
+      throw answersError;
+    }
+
+    if (!isPartial) {
+      const { error: submitError } = await client
+        .from("responses")
+        .update({ submitted_at: startedAt })
+        .eq("id", responseId);
+      if (submitError) {
+        throw submitError;
+      }
+      submittedCount += 1;
+    } else {
+      partialCount += 1;
+    }
+
+    console.log(
+      `Round ${round.roundNumber} ${isPartial ? "started" : "submitted"}: ${email} (${
+        answerRows.length
+      }/${statements.length} answers)`
+    );
+  }
+
+  console.log(
+    `Round ${round.roundNumber} (${round.title}): ${submittedCount} submitted, ${partialCount} started.`
+  );
+}
+
+/**
+ * Upserts a `results_consent` row (consented: true) for a deterministic
+ * ~40% of demo users. The results_consent_before_write trigger stamps
+ * consented_at/updated_at from the DB clock.
+ */
+async function seedResultsConsent(
+  client: AdminClient,
+  emails: string[],
+  userIdByEmail: Map<string, string>
+): Promise<void> {
+  const rng = rngFor("results-consent");
+  const rows = emails
+    .filter(() => rng() < 0.4)
+    .map((email) => {
+      const userId = userIdByEmail.get(email);
+      if (!userId) {
+        throw new Error(`No auth user id resolved for ${email}`);
+      }
+      return {
+        user_id: userId,
+        consented: true,
+        consent_text_version: RESULTS_CONSENT_VERSION,
+      };
+    });
+
+  if (rows.length === 0) {
+    console.log("No demo users selected for results_consent this run.");
+    return;
+  }
+
+  const { error } = await client
+    .from("results_consent")
+    .upsert(rows, { onConflict: "user_id" });
+  if (error) {
+    throw error;
+  }
+  console.log(`Seeded results_consent for ${rows.length} demo user(s).`);
+}
 
 async function seed(): Promise<void> {
   const client = adminClient();
@@ -364,135 +739,21 @@ async function seed(): Promise<void> {
       console.log(`Created user: ${email}`);
     }
 
-    const { data: openRoundId, error: roundIdError } = await client.rpc(
-      "current_open_round_id"
-    );
-    if (roundIdError) {
-      throw roundIdError;
+    const rounds = await fetchSurveyRounds(client);
+    if (rounds.length === 0) {
+      throw new Error("No rounds exist — cannot seed responses.");
     }
-    if (!openRoundId) {
-      throw new Error("No round is currently open — cannot seed responses.");
-    }
-
     const scaleRanges = await fetchScaleRanges(client);
-    const statements = await fetchRoundStatements(
-      client,
-      openRoundId as string
-    );
-    if (statements.length === 0) {
-      throw new Error(`Open round ${openRoundId} has no statements.`);
+
+    for (const round of rounds) {
+      // Partial (started, not submitted) responses only in session 1 —
+      // the open one; later sessions get every demo user submitted.
+      const partialEmails =
+        round.sessionNumber === 1 ? PARTIAL_EMAILS : new Set<string>();
+      await seedRound(client, round, emails, userIdByEmail, scaleRanges, partialEmails);
     }
 
-    const profiles = new Map<string, StatementProfile>(
-      statements.map((s) => [
-        s.key,
-        profileFor(
-          s.key,
-          s.scaleKey,
-          scaleRanges.get(s.scaleKey) ?? { min: 1, max: 5 }
-        ),
-      ])
-    );
-
-    const { data: existingResponses, error: existingResponsesError } =
-      await client
-        .from("responses")
-        .select("id, user_id")
-        .eq("round_id", openRoundId);
-    if (existingResponsesError) {
-      throw existingResponsesError;
-    }
-    const userIdsWithResponse = new Set(
-      (existingResponses ?? []).map((r) => r.user_id as string)
-    );
-
-    let submittedCount = 0;
-    let partialCount = 0;
-
-    for (let i = 0; i < emails.length; i++) {
-      const email = emails[i];
-      const userId = userIdByEmail.get(email);
-      if (!userId) {
-        throw new Error(`No auth user id resolved for ${email}`);
-      }
-      if (userIdsWithResponse.has(userId)) {
-        console.log(`Skip (response exists): ${email}`);
-        continue;
-      }
-
-      const userIndex = i + 1;
-      const isPartial = PARTIAL_EMAILS.has(email);
-      const startedAt = startedAtFor(userIndex);
-
-      const { data: responseRow, error: responseError } = await client
-        .from("responses")
-        .insert({ round_id: openRoundId, user_id: userId, created_at: startedAt })
-        .select("id")
-        .single();
-      if (responseError || !responseRow) {
-        throw responseError ?? new Error(`Failed to create response for ${email}`);
-      }
-      const responseId = responseRow.id as string;
-
-      let statementsToAnswer = statements;
-      if (isPartial) {
-        const countRng = rngFor(`partial-count:${userIndex}`);
-        const answerCount = Math.max(
-          1,
-          Math.round(statements.length * (0.3 + countRng() * 0.3))
-        );
-        statementsToAnswer = seededSampleWithoutReplacement(
-          statements,
-          answerCount,
-          rngFor(`partial-pick:${userIndex}`)
-        );
-      }
-
-      const answerRows = statementsToAnswer.map((s) => {
-        const profile = profiles.get(s.key);
-        if (!profile) {
-          throw new Error(`No profile computed for statement ${s.key}`);
-        }
-        const range = scaleRanges.get(s.scaleKey) ?? { min: 1, max: 5 };
-        const value = sampleValue(profile, range, userIndex, s.key);
-        return {
-          response_id: responseId,
-          round_id: openRoundId,
-          statement_id: s.id,
-          value,
-        };
-      });
-
-      const { error: answersError } = await client
-        .from("answers")
-        .insert(answerRows);
-      if (answersError) {
-        throw answersError;
-      }
-
-      if (!isPartial) {
-        const { error: submitError } = await client
-          .from("responses")
-          .update({ submitted_at: startedAt })
-          .eq("id", responseId);
-        if (submitError) {
-          throw submitError;
-        }
-        submittedCount += 1;
-      } else {
-        partialCount += 1;
-      }
-
-      console.log(
-        `${isPartial ? "Started (not submitted)" : "Submitted"}: ${email} (${
-          answerRows.length
-        }/${statements.length} answers)`
-      );
-    }
-
-    console.log(
-      `Seed complete: ${submittedCount} submitted, ${partialCount} started.`
-    );
+    await seedResultsConsent(client, emails, userIdByEmail);
   } finally {
     if (!domainAlreadyAllowed) {
       const { error: deleteDomainError } = await client

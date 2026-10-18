@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { createRound, type CreateRoundState } from "@/lib/admin/round-actions";
+import { createSurvey, type CreateSurveyState } from "@/lib/admin/round-actions";
 import { ADMIN_MESSAGES } from "@/lib/admin/messages";
 
 function SubmitButton() {
@@ -11,15 +11,20 @@ function SubmitButton() {
 
   return (
     <Button type="submit" disabled={pending}>
-      {ADMIN_MESSAGES.createRound}
+      {ADMIN_MESSAGES.createSurvey}
     </Button>
   );
 }
 
-const initialState: CreateRoundState = { error: null };
+const initialState: CreateSurveyState = { error: null };
 
-export function CreateRoundButton() {
-  const [state, formAction] = useActionState(createRound, initialState);
+/**
+ * "Create new survey" (surveys v2 part B, replaces the old "Create new
+ * round"): creates a whole new survey with its 3 draft sessions, copying
+ * the latest survey's content. Stays on the dashboard on success.
+ */
+export function CreateSurveyButton() {
+  const [state, formAction] = useActionState(createSurvey, initialState);
 
   return (
     <form action={formAction} className="flex flex-col items-end gap-1">

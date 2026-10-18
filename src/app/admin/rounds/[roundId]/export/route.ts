@@ -52,7 +52,12 @@ export async function GET(
 
   const csv = toRoundCsv(
     result.participants,
-    result.statements.map((s) => s.key)
+    result.statements.map((s) => ({
+      key: s.key,
+      kind: s.kind,
+      options: s.options,
+    })),
+    { includeConsent: true }
   );
 
   return new Response(csv, {

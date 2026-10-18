@@ -21,9 +21,8 @@ import { pivotResponses, type AdminResponseRow } from "../../src/lib/admin/respo
 
 /**
  * ADM-02's UI half: an admin opens a round's responses and sees each
- * participant by email with their answers, started/submitted status, and
- * answered count; expanding a row shows every statement's answer or "Not
- * answered"; an email filter narrows the rows; an empty round shows the
+ * participant by email with started/submitted status and answered count,
+ * but never their individual answers; an email filter narrows the rows; an empty round shows the
  * empty state. Task 3 extends this file with the CSV export route, the
  * download, and the guard/privacy cases.
  */
@@ -74,7 +73,7 @@ test.describe.serial("admin responses @admin-responses", () => {
     expect(await countAuthUsersByEmail(guardEmail)).toBe(0);
   });
 
-  test("list and expand", async ({ page, context }) => {
+  test("list", async ({ page, context }) => {
     await signInViaCodePage(page, context, adminEmail);
     await page.goto(`/admin/rounds/${closedRound.roundId}`);
     await page.getByRole("link", { name: ADMIN_MESSAGES.viewResponses }).click();
@@ -112,27 +111,10 @@ test.describe.serial("admin responses @admin-responses", () => {
       paEmail
     );
 
-    // Expanding pa shows both answers with their agreement labels, numbered
-    // 1..N, with no statement key text anywhere in the panel.
-    const paToggle = paRow.locator("button[aria-controls]");
-    await paToggle.click();
-    await expect(paToggle).toHaveAttribute("aria-expanded", "true");
-    await expect(paToggle).toHaveText(ADMIN_MESSAGES.hideAnswers);
-    const paPanel = page.locator(`#${await paToggle.getAttribute("aria-controls")}`);
-    await expect(paPanel.getByText("1.", { exact: false }).first()).toBeVisible();
-    await expect(paPanel.getByText("2.", { exact: false }).first()).toBeVisible();
-    await expect(paPanel.getByText("Strongly disagree", { exact: true })).toBeVisible();
-    await expect(paPanel.getByText("Disagree", { exact: true })).toBeVisible();
-    await expect(paPanel.getByText("e2e_01", { exact: true })).toHaveCount(0);
-    await expect(paPanel.getByText("e2e_02", { exact: true })).toHaveCount(0);
-
-    // Expanding pc (zero answers) shows "Not answered" for every statement.
-    const pcToggle = pcRow.locator("button[aria-controls]");
-    await pcToggle.click();
-    await expect(pcToggle).toHaveAttribute("aria-expanded", "true");
-    await expect(
-      page.getByText(ADMIN_MESSAGES.notAnswered, { exact: false })
-    ).toHaveCount(2);
+    // Individual answers stay anonymous: no per-row expand control and no
+    // answer labels anywhere in the table.
+    await expect(page.locator("button[aria-controls]")).toHaveCount(0);
+    await expect(page.getByText("Strongly disagree", { exact: true })).toHaveCount(0);
 
     // Filtering "rb" leaves exactly pb's row.
     await page.getByLabel(ADMIN_MESSAGES.filterByEmail).fill("rb");

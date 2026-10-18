@@ -6,8 +6,10 @@
  * phase extend this object.
  */
 export const ADMIN_MESSAGES = {
-  roundsHeading: "Rounds",
-  roundsLoadFailed: "Couldn't load rounds. Refresh to try again.",
+  surveysLoadFailed: "Couldn't load the survey. Refresh to try again.",
+  noSurveysHeading: "No survey yet",
+  noSurveysBody: "Create a survey to get started.",
+  pastSurveysHeading: "Past surveys",
   statusLabels: {
     draft: "Draft",
     scheduled: "Scheduled",
@@ -20,10 +22,15 @@ export const ADMIN_MESSAGES = {
   ukTimeNote: "Times are UK time (Europe/London).",
   responsesCounts: (started: number, submitted: number) =>
     `${started} started · ${submitted} submitted`,
-  roundSummary: (roundNumber: number, sections: number, statements: number) =>
-    `Round ${roundNumber} · ${sections} section${sections === 1 ? "" : "s"} · ${statements} statement${statements === 1 ? "" : "s"}`,
-  createRound: "Create new round",
-  createFailed: "Couldn't create the round. Try again.",
+  roundRowLabel: (sessionNumber: number, title: string) =>
+    `Round ${sessionNumber} · ${title}`,
+  // User language: a round (part) has numbered questions (1, 2a, 2b …).
+  roundSummary: (questions: number) =>
+    `${questions} question${questions === 1 ? "" : "s"}`,
+  roundContextLine: (sessionNumber: number, surveyTitle: string) =>
+    `Round ${sessionNumber} · ${surveyTitle}`,
+  createSurvey: "Create new survey",
+  createSurveyFailed: "Couldn't create the survey. Try again.",
   backToRounds: "Back to rounds",
 
   // Rounds dashboard row actions menu.
@@ -120,11 +127,9 @@ export const ADMIN_MESSAGES = {
   badgeSubmitted: "Submitted",
   badgeStarted: "Started",
   answeredOf: (a: number, n: number) => `${a} of ${n} answered`,
-  showAnswers: "Show answers",
-  hideAnswers: "Hide answers",
-  notAnswered: "Not answered",
-  answerSrLabel: (value: number, total: number) => `${value} of ${total}`,
   noSubmittedTime: "—",
+  optedInHeading: "Opted in",
+  optedInBadge: "Opted in",
 
   // CSV export (ADM-03).
   exportCsv: "Export CSV",

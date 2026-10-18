@@ -8,8 +8,27 @@
 export const SECONDS_PER_STATEMENT = 10;
 
 /** '1 question' or '{n} questions'. */
+/** Start screen, e.g. "Part 1 of 3 · 6 questions" (questions = the numbered
+ * blocks 1, 2a, 2b … in this part). */
+export function partAndQuestionsLabel(
+  part: number | null,
+  totalParts: number | null,
+  questions: number
+): string {
+  const q = questions === 1 ? "1 question" : `${questions} questions`;
+  return part && totalParts ? `Part ${part} of ${totalParts} · ${q}` : q;
+}
+
 export function questionCountLabel(n: number): string {
   return n === 1 ? "1 question" : `${n} questions`;
+}
+
+/** "Part 1 of 3", or null when either part isn't known. */
+export function partLabel(
+  part: number | null,
+  totalParts: number | null
+): string | null {
+  return part && totalParts ? `Part ${part} of ${totalParts}` : null;
 }
 
 /**
@@ -42,17 +61,44 @@ export type SectionGroupableStatement = {
   sectionId: string;
   sectionTitle: string;
   sectionPrompt: string;
+  /** e.g. "2a"; absent/null for unlabelled sections. */
+  sectionLabel?: string | null;
+  /** e.g. "What is design?" for 2a/2b. */
+  sectionParentTitle?: string | null;
 };
 
 export type SectionSummary = {
-  /** 1-based. */
+  /** 1-based position within this round (session). */
   sectionNumber: number;
   sectionId: string;
+  /** Display numbering ("1", "2a", "11b"), or null. */
+  label: string | null;
+  parentTitle: string | null;
   title: string;
   prompt: string;
   /** Statement keys in round order, within this section only. */
   statementKeys: string[];
 };
+
+/** "2a. What is a designer?" — or just the title when unlabelled. */
+export function sectionHeading(label: string | null, title: string): string {
+  return label ? `${label}. ${title}` : title;
+}
+
+/**
+ * The parent line for a subsection, e.g. label "2a" + "What is design?" ->
+ * "2. What is design?". Null when there's no parent title.
+ */
+export function parentSectionHeading(
+  label: string | null,
+  parentTitle: string | null
+): string | null {
+  if (!parentTitle) {
+    return null;
+  }
+  const parentNumber = label?.match(/^\d+/)?.[0];
+  return parentNumber ? `${parentNumber}. ${parentTitle}` : parentTitle;
+}
 
 /**
  * Groups round-ordered statements into their sections. Relies on
@@ -72,6 +118,8 @@ export function buildSectionSummaries(
       sections.push({
         sectionNumber: sections.length + 1,
         sectionId: statement.sectionId,
+        label: statement.sectionLabel ?? null,
+        parentTitle: statement.sectionParentTitle ?? null,
         title: statement.sectionTitle,
         prompt: statement.sectionPrompt,
         statementKeys: [statement.key],
@@ -84,6 +132,8 @@ export function buildSectionSummaries(
 export type StatementSectionPosition = {
   sectionNumber: number;
   totalSections: number;
+  /** The section's display label ("2a"), or null. */
+  sectionLabel: string | null;
   /** 1-based position of this statement within its own section. */
   positionInSection: number;
   /** Total statements in this statement's section. */
@@ -146,6 +196,7 @@ export function resolveStatementNav(
     position: {
       sectionNumber: section.sectionNumber,
       totalSections: sections.length,
+      sectionLabel: section.label,
       positionInSection: indexInSection + 1,
       countInSection: section.statementKeys.length,
     },
@@ -155,6 +206,8 @@ export function resolveStatementNav(
 export type SectionScreen = {
   sectionNumber: number;
   totalSections: number;
+  label: string | null;
+  parentTitle: string | null;
   title: string;
   prompt: string;
   questionCount: number;
@@ -187,6 +240,8 @@ export function resolveSectionScreen(
   return {
     sectionNumber: section.sectionNumber,
     totalSections: sections.length,
+    label: section.label,
+    parentTitle: section.parentTitle,
     title: section.title,
     prompt: section.prompt,
     questionCount: section.statementKeys.length,
@@ -212,6 +267,12 @@ export type SurveyScreen =
 export type ResolveSurveyScreenInput = {
   openRound: { title: string } | null;
   orderedStatementKeys: string[];
+  /**
+   * The non-optional subset of orderedStatementKeys, in the same order.
+   * Resume/review only wait on these (an optional prediction left blank
+   * never blocks review). Defaults to every key.
+   */
+  requiredStatementKeys?: string[];
   response: { submittedAt: string | null } | null;
   answeredKeys: ReadonlySet<string>;
 };
@@ -223,8 +284,8 @@ export type ResolveSurveyScreenInput = {
  *   2. zero statements -> no-round
  *   3. response?.submittedAt non-null -> thanks
  *   4. none of the round's keys answered -> start
- *   5. otherwise the first key in order that is not answered -> resume
- *   6. all answered -> review
+ *   5. otherwise the first REQUIRED key in order that is not answered -> resume
+ *   6. all required answered -> review
  *
  * `response` must always be the participant's response for the OPEN round
  * only (the caller's snapshot scopes it this way), which is what keeps a
@@ -235,6 +296,7 @@ export function resolveSurveyScreen(
   input: ResolveSurveyScreenInput
 ): SurveyScreen {
   const { openRound, orderedStatementKeys, response, answeredKeys } = input;
+  const requiredKeys = input.requiredStatementKeys ?? orderedStatementKeys;
 
   if (!openRound) {
     return { kind: "no-round" };
@@ -258,9 +320,7 @@ export function resolveSurveyScreen(
     };
   }
 
-  const firstUnanswered = orderedStatementKeys.find(
-    (key) => !answeredKeys.has(key)
-  );
+  const firstUnanswered = requiredKeys.find((key) => !answeredKeys.has(key));
   if (firstUnanswered) {
     return { kind: "resume", statementKey: firstUnanswered };
   }

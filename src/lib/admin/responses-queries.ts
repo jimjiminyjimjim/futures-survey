@@ -5,12 +5,20 @@ import {
   type AdminResponseRow,
   type ParticipantResponse,
 } from "@/lib/admin/responses";
+import type { ChoiceOption, QuestionKind } from "@/lib/survey/answer-rules";
 
 export type RoundResponsesStatement = {
   key: string;
   text: string;
   sectionTitle: string;
+  /** Display numbering, e.g. "1", "2a", "11b" (null for unlabelled sections). */
+  sectionLabel: string | null;
   scaleKey: string;
+  kind: QuestionKind;
+  /** Choice kinds only: this statement's own options. [] for scale/prediction. */
+  options: ChoiceOption[];
+  /** Optional questions (predictions) don't count towards submit completeness. */
+  optional: boolean;
   position: number;
 };
 
@@ -76,7 +84,11 @@ export async function getRoundResponses(
         key: statement.key,
         text: statement.text,
         sectionTitle: section.title,
+        sectionLabel: section.label,
         scaleKey: section.scaleKey,
+        kind: statement.kind,
+        options: statement.options,
+        optional: statement.optional,
         position,
       });
     }

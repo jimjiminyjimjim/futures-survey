@@ -11,6 +11,7 @@ import {
 import { getSignedInUser } from "@/lib/auth/session";
 import { readPendingEmail } from "@/lib/auth/pending-email";
 import { VerifyCodeForm } from "@/app/login/code/verify-code-form";
+import { ResendCodeButton } from "@/app/login/code/resend-code-button";
 
 // This route reads cookies() on every request to decide signed-in state
 // and whether a pending-email cookie exists, which alone makes it dynamic
@@ -39,12 +40,12 @@ export default async function VerifyCodePage() {
             Check your email
           </CardTitle>
           <CardDescription>
-            We sent a 6-digit code to {email}. Enter it below, or click the
-            sign-in link in the same email.
+            We sent a 6-digit code to {email}. Enter it below.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <VerifyCodeForm />
+          <ResendCodeButton />
           <Link
             href="/login"
             className="text-sm text-muted-foreground underline-offset-4 hover:underline"

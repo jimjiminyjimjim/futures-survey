@@ -75,6 +75,14 @@ export default async function RoundEditorPage({
     <div className="flex flex-1 flex-col items-center bg-zinc-50 px-4 py-12 dark:bg-black">
       <div className="flex w-full max-w-5xl flex-col gap-8">
         <div className="flex flex-col gap-2">
+          {round.sessionNumber != null && round.surveyTitle ? (
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {ADMIN_MESSAGES.roundContextLine(
+                round.sessionNumber,
+                round.surveyTitle
+              )}
+            </p>
+          ) : null}
           <div className="flex flex-wrap items-start justify-between gap-4">
             <h1 className="text-2xl font-semibold break-words">{round.title}</h1>
             <div className="flex flex-wrap items-center justify-end gap-3">
@@ -167,7 +175,6 @@ export default async function RoundEditorPage({
             <ResponsesTable
               participants={responses.participants}
               statements={responses.statements}
-              optionLabels={responses.optionLabels}
               heading={(
                 <div className="flex items-baseline gap-3">
                   <h2 id="responses-heading" className="text-lg font-semibold">

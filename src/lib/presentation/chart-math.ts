@@ -5,7 +5,7 @@
  * (tests/api/presentation-math.spec.ts).
  */
 import { PRESENTATION_MESSAGES } from "./messages";
-import type { OptionCount } from "./types";
+import type { OptionCount, TwoEndedBucket } from "./types";
 
 /** Half-up (round-half-away-from-zero for non-negative inputs) integer
  * percentage. 0 when total is 0. Options are never adjusted to sum to
@@ -123,4 +123,129 @@ export function rankByMeanFamiliarity<T extends FamiliarityTerm>(
 
 export function formatMean(n: number): string {
   return n.toFixed(1);
+}
+
+/** 11 OptionCounts for a 0–10 rating, values 0..10, label String(value),
+ * zeros included for values with no answers. */
+export function ratingOptionCounts(byValue: Map<number, number>): OptionCount[] {
+  return Array.from({ length: 11 }, (_, value) => ({
+    value,
+    label: String(value),
+    count: byValue.get(value) ?? 0,
+  }));
+}
+
+/** 1 dp weighted average of a set of option counts, or null when the
+ * total is 0. */
+export function averageFromCounts(options: OptionCount[]): number | null {
+  let sum = 0;
+  let n = 0;
+  for (const o of options) {
+    sum += o.value * o.count;
+    n += o.count;
+  }
+  return n === 0 ? null : Math.round((sum / n) * 10) / 10;
+}
+
+/** 10 buckets 0–9, 10–19, … 90–100 (the last includes 100) for a 0..100
+ * two_ended distribution. percent via optionPercent (half-up, 0 on an
+ * empty total). */
+export function twoEndedBuckets(byValue: Map<number, number>): TwoEndedBucket[] {
+  const counts = Array.from({ length: 10 }, () => 0);
+  let total = 0;
+  for (const [value, count] of byValue) {
+    const idx = value >= 100 ? 9 : Math.floor(value / 10);
+    counts[idx] += count;
+    total += count;
+  }
+  return counts.map((count, i) => ({
+    from: i * 10,
+    to: i === 9 ? 100 : i * 10 + 9,
+    count,
+    percent: optionPercent(count, total),
+  }));
+}
+
+/** Count of respondents who chose agreement levels 4 (Agree) or 5
+ * (Strongly agree). options must be in value order; missing values
+ * treated as count 0. */
+export function agreeCount(options: OptionCount[]): number {
+  const byValue = new Map(options.map((o) => [o.value, o.count]));
+  return (byValue.get(4) ?? 0) + (byValue.get(5) ?? 0);
+}
+
+/** Count of respondents who chose agreement levels 1 (Strongly
+ * disagree) or 2 (Disagree). */
+export function disagreeCount(options: OptionCount[]): number {
+  const byValue = new Map(options.map((o) => [o.value, o.count]));
+  return (byValue.get(1) ?? 0) + (byValue.get(2) ?? 0);
+}
+
+/** % of total who agreed (levels 4+5). Half-up rounded, 0 when total is
+ * 0 (callers gate the "No respondents yet" empty state separately). */
+export function agreePercent(options: OptionCount[], total: number): number {
+  return optionPercent(agreeCount(options), total);
+}
+
+/** % of total who disagreed (levels 1+2). */
+export function disagreePercent(options: OptionCount[], total: number): number {
+  return optionPercent(disagreeCount(options), total);
+}
+
+/** Plain-words agreement headline: "68% agree · 18% disagree". */
+export function formatAgreeDisagree(agree: number, disagree: number): string {
+  return `${agree}% agree · ${disagree}% disagree`;
+}
+
+/** Count of respondents who could explain a familiarity term — levels 3
+ * ("I could explain it simply") or 4 ("...use it in my work"). */
+export function explainCount(options: OptionCount[]): number {
+  const byValue = new Map(options.map((o) => [o.value, o.count]));
+  return (byValue.get(3) ?? 0) + (byValue.get(4) ?? 0);
+}
+
+/** % of total who could explain the term (levels 3+4). */
+export function explainPercent(options: OptionCount[], total: number): number {
+  return optionPercent(explainCount(options), total);
+}
+
+/** Plain-words familiarity headline: "54% could explain it". */
+export function formatExplainHeadline(percent: number): string {
+  return `${percent}% could explain it`;
+}
+
+export type ExplainTerm = {
+  statementKey: string;
+  sortOrder: number;
+  explainCount: number;
+  n: number;
+};
+
+/**
+ * Ranks familiarity-overview terms by % who could explain the term
+ * (explainCount / n) descending, comparing by exact integer
+ * cross-multiplication (same technique as rankByMeanFamiliarity) so
+ * equal percentages are never nudged apart by floating-point rounding.
+ * A zero-respondent term always ranks last. Ties keep ascending
+ * sortOrder. Stable (Array.prototype.sort is a stable sort per spec).
+ */
+export function rankByExplainPercent<T extends ExplainTerm>(terms: T[]): T[] {
+  return [...terms].sort((a, b) => {
+    const aZero = a.n === 0;
+    const bZero = b.n === 0;
+    let cross: number;
+    if (aZero && bZero) {
+      cross = 0;
+    } else if (aZero) {
+      cross = 1;
+    } else if (bZero) {
+      cross = -1;
+    } else {
+      cross = b.explainCount * a.n - a.explainCount * b.n;
+    }
+    if (cross !== 0) {
+      return cross;
+    }
+    return a.sortOrder - b.sortOrder;
+  });
 }

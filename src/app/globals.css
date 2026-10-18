@@ -50,6 +50,7 @@
   --color-pres-page: var(--pres-page);
   --color-pres-surface: var(--pres-surface);
   --color-pres-ink: var(--pres-ink);
+  --color-pres-accent: var(--pres-accent);
   --color-pres-ink-secondary: var(--pres-ink-secondary);
   --color-pres-ink-muted: var(--pres-ink-muted);
   --color-pres-border: var(--pres-border);
@@ -117,6 +118,8 @@
   --pres-page: #0d0d0d;
   --pres-surface: #1a1a19;
   --pres-ink: #ffffff;
+  /* Single highlight for the top answer on results slides (no key needed). */
+  --pres-accent: #f5b83d;
   --pres-ink-secondary: #c3c2b7;
   --pres-ink-muted: #898781;
   --pres-border: rgba(255, 255, 255, 0.1);
@@ -133,6 +136,18 @@
   --pres-familiarity-2: #6da7ec;
   --pres-familiarity-3: #3987e5;
   --pres-familiarity-4: #184f95;
+
+  /* Choice-question bars (choice_one / choice_multi / choice_exact),
+     Surveys v2 Part C. One consistent hue for every ranked option bar —
+     this is a categorical ranking, not an ordinal/diverging scale, so a
+     single mark colour is correct (not a ramp). The exclusive "None of
+     these" option (choice_multi) uses the muted variant so it reads as
+     the odd-one-out among the options it's mutually exclusive with. Not
+     re-run through validate_palette.js: both reuse already-validated
+     project hues (the familiarity ramp's blue anchor, and the agreement
+     chart's neutral-grey anchor) rather than introducing a new hue. */
+  --pres-choice: #3987e5;
+  --pres-choice-muted: #5b5b57;
 }
 
 .dark {

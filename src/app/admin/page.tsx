@@ -14,8 +14,12 @@ import {
 } from "@/components/ui/table";
 import { RoundStatusBadge } from "@/components/admin/round-status-badge";
 import { RoundActionsMenu } from "@/components/admin/round-actions-menu";
-import { CreateRoundButton } from "@/app/admin/create-round-button";
-import { listRounds } from "@/lib/admin/rounds-queries";
+import { CreateSurveyButton } from "@/app/admin/create-survey-button";
+import {
+  listRounds,
+  groupRoundsBySurvey,
+  type AdminRoundRow,
+} from "@/lib/admin/rounds-queries";
 import { ADMIN_MESSAGES } from "@/lib/admin/messages";
 import { formatAdminDateTime } from "@/lib/admin/datetime";
 
@@ -29,6 +33,81 @@ import { formatAdminDateTime } from "@/lib/admin/datetime";
 // pattern as src/app/page.tsx instead of optional-chaining past a state
 // the rest of the app treats as impossible.
 export const instant = false;
+
+/**
+ * One survey's 3 rounds (sessions), surveys v2 part B: "Round N · <session
+ * title>", status, opens/closes, started/submitted counts, ⋯ menu.
+ */
+function SurveyRoundsTable({ rounds }: { rounds: AdminRoundRow[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableCaption className="sr-only">
+          This survey&rsquo;s rounds, in session order
+        </TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Round</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Opens</TableHead>
+            <TableHead>Closes</TableHead>
+            <TableHead>Responses</TableHead>
+            <TableHead>
+              <span className="sr-only">Actions</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rounds.map((round) => (
+            <TableRow key={round.id}>
+              <TableCell className="whitespace-normal break-words p-2">
+                <Link
+                  href={`/admin/rounds/${round.id}`}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {round.sessionNumber != null
+                    ? ADMIN_MESSAGES.roundRowLabel(
+                        round.sessionNumber,
+                        round.title
+                      )
+                    : round.title}
+                </Link>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {ADMIN_MESSAGES.roundSummary(round.sectionCount)}
+                </p>
+              </TableCell>
+              <TableCell className="p-2">
+                <RoundStatusBadge status={round.status} />
+              </TableCell>
+              <TableCell className="p-2">
+                {formatAdminDateTime(round.opensAt) ?? ADMIN_MESSAGES.notSet}
+              </TableCell>
+              <TableCell className="p-2">
+                {formatAdminDateTime(round.closesAt) ??
+                  (round.status === "open" || round.status === "scheduled"
+                    ? ADMIN_MESSAGES.untilClosed
+                    : ADMIN_MESSAGES.notSet)}
+              </TableCell>
+              <TableCell className="p-2">
+                {ADMIN_MESSAGES.responsesCounts(
+                  round.startedCount,
+                  round.submittedCount
+                )}
+              </TableCell>
+              <TableCell className="p-2 text-right">
+                <RoundActionsMenu
+                  roundId={round.id}
+                  roundTitle={round.title}
+                  status={round.status}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
 
 export default async function AdminPage() {
   // cacheComponents + partialPrefetching still attempt a speculative
@@ -48,96 +127,66 @@ export default async function AdminPage() {
   }
 
   const result = await listRounds();
+  const surveys = result.ok ? groupRoundsBySurvey(result.rounds) : [];
+  const [currentSurvey, ...pastSurveys] = surveys;
 
   return (
     <div className="flex flex-1 flex-col items-center bg-zinc-50 px-4 py-12 dark:bg-black">
-      <div className="flex w-full max-w-5xl flex-col gap-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <h1 className="text-2xl font-semibold">
-            {ADMIN_MESSAGES.roundsHeading}
-          </h1>
-          <CreateRoundButton />
-        </div>
-
+      <div className="flex w-full max-w-5xl flex-col gap-8">
         {!result.ok ? (
           <Card>
             <CardContent>
-              <p role="alert">{ADMIN_MESSAGES.roundsLoadFailed}</p>
+              <p role="alert">{ADMIN_MESSAGES.surveysLoadFailed}</p>
             </CardContent>
           </Card>
-        ) : (
+        ) : !currentSurvey ? (
           <>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <h1 className="text-2xl font-semibold">
+                {ADMIN_MESSAGES.noSurveysHeading}
+              </h1>
+              <CreateSurveyButton />
+            </div>
             <Card>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableCaption className="sr-only">
-                      All survey rounds, newest first
-                    </TableCaption>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Round</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Opens</TableHead>
-                        <TableHead>Closes</TableHead>
-                        <TableHead>Responses</TableHead>
-                        <TableHead>
-                          <span className="sr-only">Actions</span>
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {result.rounds.map((round) => (
-                        <TableRow key={round.id}>
-                          <TableCell className="whitespace-normal break-words p-2">
-                            <Link
-                              href={`/admin/rounds/${round.id}`}
-                              className="font-medium text-primary underline-offset-4 hover:underline"
-                            >
-                              {round.title}
-                            </Link>
-                            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                              {ADMIN_MESSAGES.roundSummary(
-                                round.roundNumber,
-                                round.sectionCount,
-                                round.statementCount
-                              )}
-                            </p>
-                          </TableCell>
-                          <TableCell className="p-2">
-                            <RoundStatusBadge status={round.status} />
-                          </TableCell>
-                          <TableCell className="p-2">
-                            {formatAdminDateTime(round.opensAt) ??
-                              ADMIN_MESSAGES.notSet}
-                          </TableCell>
-                          <TableCell className="p-2">
-                            {formatAdminDateTime(round.closesAt) ??
-                              (round.status === "open" ||
-                              round.status === "scheduled"
-                                ? ADMIN_MESSAGES.untilClosed
-                                : ADMIN_MESSAGES.notSet)}
-                          </TableCell>
-                          <TableCell className="p-2">
-                            {ADMIN_MESSAGES.responsesCounts(
-                              round.startedCount,
-                              round.submittedCount
-                            )}
-                          </TableCell>
-                          <TableCell className="p-2 text-right">
-                            <RoundActionsMenu
-                              roundId={round.id}
-                              roundTitle={round.title}
-                              status={round.status}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                <p>{ADMIN_MESSAGES.noSurveysBody}</p>
               </CardContent>
             </Card>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <h1 className="text-2xl font-semibold break-words">
+                {currentSurvey.surveyTitle}
+              </h1>
+              <CreateSurveyButton />
+            </div>
+
+            <Card>
+              <CardContent>
+                <SurveyRoundsTable rounds={currentSurvey.rounds} />
+              </CardContent>
+            </Card>
+
+            {pastSurveys.length > 0 ? (
+              <div className="flex flex-col gap-6 border-t pt-8">
+                <h2 className="text-lg font-semibold">
+                  {ADMIN_MESSAGES.pastSurveysHeading}
+                </h2>
+                {pastSurveys.map((survey) => (
+                  <div key={survey.surveyId} className="flex flex-col gap-2">
+                    <h3 className="text-base font-semibold break-words">
+                      {survey.surveyTitle}
+                    </h3>
+                    <Card>
+                      <CardContent>
+                        <SurveyRoundsTable rounds={survey.rounds} />
+                      </CardContent>
+                    </Card>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </>
         )}
       </div>

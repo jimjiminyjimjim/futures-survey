@@ -96,6 +96,56 @@ export async function requestCode(
   redirect("/login/code");
 }
 
+export type ResendState = { error: string | null; sentAt: number | null };
+
+/**
+ * "Resend code" on /login/code: re-sends a sign-in code to the pending
+ * email (same eligibility pre-check and Supabase call as requestCode).
+ * Supabase enforces a 60s minimum gap (auth.email.max_frequency); the
+ * button also shows a client-side countdown.
+ */
+export async function resendCode(
+  _prev: ResendState,
+  _formData: FormData
+): Promise<ResendState> {
+  void _prev;
+  void _formData;
+  const email = await readPendingEmail();
+  if (!email) {
+    redirect("/login");
+  }
+
+  const supabase = await createClient();
+  const { data: eligible, error: eligibleError } = await supabase.rpc(
+    "is_email_eligible",
+    { p_email: email }
+  );
+  if (eligibleError) {
+    console.error("is_email_eligible RPC failed:", eligibleError.message);
+    return { error: AUTH_MESSAGES.sendFailed, sentAt: null };
+  }
+  if (eligible !== true) {
+    return { error: AUTH_MESSAGES.ineligible, sentAt: null };
+  }
+
+  const origin = await siteOrigin();
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: `${origin}/auth/confirm`,
+    },
+  });
+  if (error) {
+    const status = (error as { status?: number }).status;
+    if (status === 429) {
+      return { error: AUTH_MESSAGES.rateLimited, sentAt: null };
+    }
+    return { error: AUTH_MESSAGES.sendFailed, sentAt: null };
+  }
+  return { error: null, sentAt: Date.now() };
+}
+
 export async function verifyCode(
   _prev: AuthFormState,
   formData: FormData

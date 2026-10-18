@@ -8,11 +8,11 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { getSignedInUser, isCurrentUserAdmin } from "@/lib/auth/session";
-import { getSurveySnapshot } from "@/lib/survey/queries";
+import { getSurveySnapshot, getResultsConsent } from "@/lib/survey/queries";
 import {
   resolveSurveyScreen,
-  questionCountLabel,
-  roughMinutesLabel,
+  partAndQuestionsLabel,
+  partLabel,
 } from "@/lib/survey/state";
 import { SURVEY_MESSAGES } from "@/lib/survey/messages";
 import {
@@ -20,6 +20,7 @@ import {
   SurveyErrorScreen,
   ThanksScreen,
 } from "@/components/survey/status-screens";
+import { ResultsConsentStatus } from "@/components/survey/results-consent-status";
 import { NavButton } from "@/components/survey/nav-button";
 import { ParticipantHeader } from "@/components/participant-header";
 
@@ -52,9 +53,10 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const [isAdmin, snapshot] = await Promise.all([
+  const [isAdmin, snapshot, resultsConsent] = await Promise.all([
     isCurrentUserAdmin(),
     getSurveySnapshot(user.id),
+    getResultsConsent(user.id),
   ]);
 
   const orderedStatementKeys = snapshot.statements.map((s) => s.key);
@@ -68,6 +70,9 @@ export default async function HomePage() {
   const screen = resolveSurveyScreen({
     openRound: snapshot.openRound ? { title: snapshot.openRound.title } : null,
     orderedStatementKeys,
+    requiredStatementKeys: snapshot.statements
+      .filter((s) => !s.optional)
+      .map((s) => s.key),
     response: snapshot.response
       ? { submittedAt: snapshot.response.submittedAt }
       : null,
@@ -88,6 +93,11 @@ export default async function HomePage() {
       {screen.kind === "start" ? (
         <Card className="w-full max-w-md">
           <CardHeader>
+            {snapshot.openRound?.surveyTitle ? (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                {snapshot.openRound.surveyTitle}
+              </p>
+            ) : null}
             <CardTitle
               role="heading"
               aria-level={1}
@@ -96,11 +106,22 @@ export default async function HomePage() {
               {screen.roundTitle}
             </CardTitle>
             <CardDescription className="text-base">
-              {questionCountLabel(screen.questionCount)} ·{" "}
-              {roughMinutesLabel(screen.questionCount)}
+              {snapshot.openRound?.intro
+                ? partLabel(
+                    snapshot.openRound?.partNumber ?? null,
+                    snapshot.openRound?.totalParts ?? null
+                  )
+                : partAndQuestionsLabel(
+                    snapshot.openRound?.partNumber ?? null,
+                    snapshot.openRound?.totalParts ?? null,
+                    new Set(snapshot.statements.map((s) => s.sectionId)).size
+                  )}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-4">
+            {snapshot.openRound?.intro ? (
+              <p className="text-base">{snapshot.openRound.intro}</p>
+            ) : null}
             {/* Nothing answered yet: always section 1's break screen, never
                 straight to screen.firstStatementKey — the section-break
                 interstitial feature wires "Begin" through the section
@@ -114,7 +135,14 @@ export default async function HomePage() {
       {screen.kind === "no-round" ? (
         snapshot.hasError ? <SurveyErrorScreen /> : <NoOpenRoundScreen />
       ) : null}
-      {screen.kind === "thanks" ? <ThanksScreen /> : null}
+      {screen.kind === "thanks" ? (
+        <div className="flex w-full max-w-md flex-col gap-4">
+          <ThanksScreen />
+          {resultsConsent.optedIn ? (
+            <ResultsConsentStatus afterWithdraw="message" />
+          ) : null}
+        </div>
+      ) : null}
 
     </div>
     </>

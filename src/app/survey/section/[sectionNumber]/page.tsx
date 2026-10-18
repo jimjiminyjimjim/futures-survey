@@ -12,7 +12,8 @@ import { getSurveySnapshot } from "@/lib/survey/queries";
 import {
   buildSectionSummaries,
   resolveSectionScreen,
-  questionCountLabel,
+  parentSectionHeading,
+  sectionHeading,
 } from "@/lib/survey/state";
 import { SURVEY_MESSAGES } from "@/lib/survey/messages";
 import { SectionNav } from "./section-nav";
@@ -53,29 +54,32 @@ export default async function SectionPage({
   if (!screen) {
     notFound();
   }
+  const parentLine = parentSectionHeading(screen.label, screen.parentTitle);
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-4 py-12 dark:bg-black">
+    <div className="flex flex-1 flex-col items-center justify-center bg-black px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardDescription className="text-sm">
             {SURVEY_MESSAGES.sectionOf(screen.sectionNumber, screen.totalSections)}
           </CardDescription>
+          {parentLine ? (
+            <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400 break-words">
+              {parentLine}
+            </p>
+          ) : null}
           <CardTitle
             role="heading"
             aria-level={1}
-            className="text-2xl font-semibold"
+            className="text-2xl font-semibold break-words"
           >
-            {screen.title}
+            {sectionHeading(screen.label, screen.title)}
           </CardTitle>
           <CardDescription className="text-base">
             {screen.prompt}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {questionCountLabel(screen.questionCount)}
-          </p>
           <SectionNav continueHref={screen.continueHref} backHref={screen.backHref} />
         </CardContent>
       </Card>

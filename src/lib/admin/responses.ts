@@ -11,6 +11,11 @@ export type AdminResponseRow = {
   submitted_at: string | null;
   statement_key: string | null;
   value: number | null;
+  /** choice_multi / choice_exact / choice_up_to picks; value is null then. */
+  choice_values?: number[] | null;
+  /** 261018-qck: results opt-in, repeated on every row for a response. */
+  results_opted_in?: boolean;
+  results_opted_in_at?: string | null;
 };
 
 export type ParticipantResponse = {
@@ -19,7 +24,12 @@ export type ParticipantResponse = {
   startedAt: string;
   submittedAt: string | null;
   answers: Record<string, number>;
+  /** statement key -> picks, for choice_multi / choice_exact / choice_up_to answers (only present when there are any). */
+  choiceAnswers?: Record<string, number[]>;
   answeredCount: number;
+  /** Optional so pre-261018-qck fixtures keep typechecking. */
+  resultsOptedIn?: boolean;
+  resultsOptedInAt?: string | null;
 };
 
 /**
@@ -41,12 +51,24 @@ export function pivotResponses(rows: AdminResponseRow[]): ParticipantResponse[] 
         submittedAt: row.submitted_at,
         answers: {},
         answeredCount: 0,
+        // Repeated identically on every row for this response — read once
+        // at entry creation.
+        resultsOptedIn: row.results_opted_in,
+        resultsOptedInAt: row.results_opted_in_at,
       };
       byResponseId.set(row.response_id, entry);
     }
 
     if (row.statement_key !== null && row.value !== null) {
       entry.answers[row.statement_key] = row.value;
+      entry.answeredCount += 1;
+    } else if (
+      row.statement_key !== null &&
+      row.choice_values != null &&
+      row.choice_values.length > 0
+    ) {
+      entry.choiceAnswers ??= {};
+      entry.choiceAnswers[row.statement_key] = row.choice_values;
       entry.answeredCount += 1;
     }
   }

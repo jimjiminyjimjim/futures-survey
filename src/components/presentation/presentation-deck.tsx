@@ -1,14 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Kbd } from "@/components/ui/kbd";
+import { ChevronLeft } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { PRESENTATION_MESSAGES } from "@/lib/presentation/messages";
+import { buildDeckSteps } from "@/lib/presentation/build-slides";
 import type { Slide } from "@/lib/presentation/types";
-import { SlideView } from "./slides";
+import { KeyQuestionTag, SlideView } from "./slides";
+
+/** statement/choice/rating/two-ended slides carry a section label+title
+ * (and optionally the key-question tag) that used to repeat inside every
+ * slide body. It now lives once, top-right of the exit-presentation
+ * chevron, at the same height. */
+type SlideWithSection = Extract<
+  Slide,
+  { sectionLabel: string | null; sectionTitle: string; isKey: boolean }
+>;
+
+function hasSectionLabel(slide: Slide): slide is SlideWithSection {
+  return (
+    slide.kind === "statement" ||
+    slide.kind === "choice" ||
+    slide.kind === "rating" ||
+    slide.kind === "two-ended"
+  );
+}
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -48,16 +65,17 @@ function isInsideClickControl(target: EventTarget | null): boolean {
 }
 
 export function PresentationDeck({ slides }: { slides: Slide[] }) {
-  const [index, setIndex] = useState(0);
+  const steps = useMemo(() => buildDeckSteps(slides), [slides]);
+  const [stepIndex, setStepIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
-  const length = slides.length;
+  const stepsLength = steps.length;
 
   const next = useCallback(() => {
-    setIndex((i) => Math.min(i + 1, length - 1));
-  }, [length]);
+    setStepIndex((i) => Math.min(i + 1, stepsLength - 1));
+  }, [stepsLength]);
 
   const prev = useCallback(() => {
-    setIndex((i) => Math.max(i - 1, 0));
+    setStepIndex((i) => Math.max(i - 1, 0));
   }, []);
 
   useEffect(() => {
@@ -97,10 +115,17 @@ export function PresentationDeck({ slides }: { slides: Slide[] }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [next, prev]);
 
-  const current = slides[index];
-  const total = length;
-  const counter = PRESENTATION_MESSAGES.slideCounter(index + 1, total);
-  const progressValue = Math.round((100 * (index + 1)) / total);
+  const currentStep = steps[stepIndex];
+  const current = slides[currentStep.slideIndex];
+  const total = slides.length;
+  // The counter/aria-label always reflect the SLIDE position, not the
+  // step — a results slide's question/reveal steps both read the same
+  // "N of total" so the count never seems to skip or stall.
+  const counter = PRESENTATION_MESSAGES.slideCounter(
+    currentStep.slideIndex + 1,
+    total
+  );
+  const progressValue = Math.round((100 * (stepIndex + 1)) / stepsLength);
 
   return (
     <div
@@ -113,21 +138,30 @@ export function PresentationDeck({ slides }: { slides: Slide[] }) {
         className="shrink-0 [&_[data-slot=progress-track]]:h-1 [&_[data-slot=progress-track]]:w-full [&_[data-slot=progress-track]]:rounded-none [&_[data-slot=progress-track]]:bg-pres-border [&_[data-slot=progress-indicator]]:bg-pres-ink"
       />
 
-      <div className="flex items-center justify-between px-8 py-4 text-[20px] text-pres-ink-muted">
+      <div className="flex items-center justify-between px-8 py-4 text-[17px] text-pres-ink-muted">
         <Link
           href="/admin"
           prefetch={false}
-          className="inline-flex items-center gap-1 text-pres-ink-secondary transition-colors hover:text-pres-ink focus-visible:text-pres-ink focus-visible:ring-2 focus-visible:ring-pres-ink focus-visible:outline-none"
+          aria-label={PRESENTATION_MESSAGES.backToRounds}
+          className="inline-flex size-10 items-center justify-center rounded-md text-pres-ink-secondary transition-colors hover:text-pres-ink focus-visible:text-pres-ink focus-visible:ring-2 focus-visible:ring-pres-ink focus-visible:outline-none"
         >
-          <ChevronLeft className="size-5" aria-hidden="true" />
-          {PRESENTATION_MESSAGES.backToRounds}
+          <ChevronLeft className="size-6" aria-hidden="true" />
         </Link>
+        {hasSectionLabel(current) ? (
+          <div className="flex items-center gap-3">
+            <p>
+              {current.sectionLabel ? `${current.sectionLabel}. ` : ""}
+              {current.sectionTitle}
+            </p>
+            {current.isKey ? <KeyQuestionTag /> : null}
+          </div>
+        ) : null}
       </div>
 
       <section
         aria-roledescription="slide"
         aria-label={counter}
-        className="min-h-0 flex-1 overflow-y-auto px-16 py-16"
+        className="min-h-0 flex-1 overflow-y-auto px-14 py-8"
         onClick={(event) => {
           if (isInsideClickControl(event.target)) {
             return;
@@ -135,43 +169,8 @@ export function PresentationDeck({ slides }: { slides: Slide[] }) {
           next();
         }}
       >
-        <SlideView slide={current} />
+        <SlideView slide={current} revealed={currentStep.revealed} />
       </section>
-
-      <div className="flex shrink-0 items-center justify-between gap-4 px-8 py-4 text-[20px] text-pres-ink-muted">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="size-11 border-pres-border bg-transparent text-pres-ink-muted hover:bg-pres-surface hover:text-pres-ink focus-visible:ring-pres-ink"
-          aria-label={PRESENTATION_MESSAGES.previousSlide}
-          disabled={index === 0}
-          onClick={prev}
-        >
-          <ChevronLeft />
-        </Button>
-
-        <div className="flex items-center gap-4">
-          <p aria-live="polite" className="tabular-nums">
-            {counter}
-          </p>
-          <Kbd className="bg-pres-surface text-pres-ink-secondary">
-            {PRESENTATION_MESSAGES.keyboardHint}
-          </Kbd>
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="size-11 border-pres-border bg-transparent text-pres-ink-muted hover:bg-pres-surface hover:text-pres-ink focus-visible:ring-pres-ink"
-          aria-label={PRESENTATION_MESSAGES.nextSlide}
-          disabled={index === total - 1}
-          onClick={next}
-        >
-          <ChevronRight />
-        </Button>
-      </div>
     </div>
   );
 }

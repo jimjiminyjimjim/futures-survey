@@ -3,6 +3,12 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { SURVEY_MESSAGES } from "@/lib/survey/messages";
+import {
+  QUESTION_KINDS,
+  normaliseAnswer,
+  parseChoiceOptions,
+  type ChoiceOption,
+} from "@/lib/survey/answer-rules";
 
 export type SaveAnswerResult =
   | { ok: true }
@@ -12,13 +18,23 @@ export type SaveAnswerResult =
       error: string;
     };
 
-const SaveAnswerInputSchema = z.object({
-  statementId: z.string().uuid(),
-  value: z.number().int().min(1).max(10),
-});
+// Shape-level validation only; the per-kind rules (which options exist,
+// how many picks, exclusive options, prediction range) are applied once the
+// statement is loaded — see normaliseAnswer.
+const SaveAnswerInputSchema = z
+  .object({
+    statementId: z.uuid(),
+    value: z.number().int().min(0).max(100).optional(),
+    choiceValues: z.array(z.number().int().min(1).max(50)).min(1).max(20).optional(),
+  })
+  .refine((v) => (v.value === undefined) !== (v.choiceValues === undefined), {
+    message: "Provide exactly one of value / choiceValues",
+  });
+
+const StatementKindSchema = z.enum(QUESTION_KINDS);
 
 /**
- * Autosaves one answer under the signed-in participant's own RLS. Never
+ * Saves one answer under the signed-in participant's own RLS. Never
  * sends user_id or submitted_at — those are the DB's job (auth.uid()
  * default, and the responses_before_write/answers_before_write triggers).
  * Logs only the step name and error code/message on failure — never the
@@ -26,13 +42,14 @@ const SaveAnswerInputSchema = z.object({
  */
 export async function saveAnswer(input: {
   statementId: string;
-  value: number;
+  value?: number;
+  choiceValues?: number[];
 }): Promise<SaveAnswerResult> {
   const parsed = SaveAnswerInputSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, reason: "invalid", error: SURVEY_MESSAGES.saveFailed };
   }
-  const { statementId, value } = parsed.data;
+  const { statementId } = parsed.data;
 
   const supabase = await createClient();
 
@@ -58,7 +75,7 @@ export async function saveAnswer(input: {
 
   const { data: statement, error: statementError } = await supabase
     .from("statements")
-    .select("id, round_id")
+    .select("id, round_id, kind, options, choice_count, sections(scale_key)")
     .eq("id", statementId)
     .eq("round_id", openRoundId)
     .maybeSingle();
@@ -70,6 +87,56 @@ export async function saveAnswer(input: {
     return { ok: false, reason: "failed", error: SURVEY_MESSAGES.saveFailed };
   }
   if (!statement) {
+    return { ok: false, reason: "invalid", error: SURVEY_MESSAGES.saveFailed };
+  }
+
+  const kindParsed = StatementKindSchema.safeParse(statement.kind);
+  if (!kindParsed.success) {
+    return { ok: false, reason: "invalid", error: SURVEY_MESSAGES.saveFailed };
+  }
+  const kind = kindParsed.data;
+
+  let options: ChoiceOption[] = [];
+  if (kind === "scale") {
+    const section = statement.sections as
+      | { scale_key: string }
+      | { scale_key: string }[]
+      | null;
+    const scaleKey = Array.isArray(section)
+      ? section[0]?.scale_key
+      : section?.scale_key;
+    if (!scaleKey) {
+      return { ok: false, reason: "invalid", error: SURVEY_MESSAGES.saveFailed };
+    }
+    const { data: scaleOptions, error: scaleOptionsError } = await supabase
+      .from("scale_options")
+      .select("value, label")
+      .eq("scale_key", scaleKey);
+    if (scaleOptionsError) {
+      console.error("saveAnswer: load scale options failed", {
+        code: scaleOptionsError.code,
+        message: scaleOptionsError.message,
+      });
+      return { ok: false, reason: "failed", error: SURVEY_MESSAGES.saveFailed };
+    }
+    options = (scaleOptions ?? []).map((o) => ({
+      value: o.value as number,
+      label: o.label as string,
+      exclusive: false,
+    }));
+  } else if (kind !== "prediction" && kind !== "rating" && kind !== "two_ended") {
+    options = parseChoiceOptions(statement.options);
+  }
+
+  const payload = normaliseAnswer(
+    {
+      kind,
+      options,
+      choiceCount: (statement.choice_count as number | null) ?? null,
+    },
+    { value: parsed.data.value, choiceValues: parsed.data.choiceValues }
+  );
+  if (!payload) {
     return { ok: false, reason: "invalid", error: SURVEY_MESSAGES.saveFailed };
   }
 
@@ -121,7 +188,9 @@ export async function saveAnswer(input: {
         response_id: response.id,
         round_id: openRoundId,
         statement_id: statementId,
-        value,
+        // Exactly one of these is non-null (answers_one_payload).
+        value: payload.value,
+        choice_values: payload.choiceValues,
       },
       { onConflict: "response_id,statement_id" }
     )
@@ -198,11 +267,14 @@ export async function submitResponse(): Promise<SubmitResult> {
     };
   }
 
+  // Only NON-optional statements count towards completeness (predictions
+  // are optional) — same rule as the responses_before_write trigger.
   const [totalResult, responseResult] = await Promise.all([
     supabase
       .from("statements")
-      .select("id", { count: "exact", head: true })
-      .eq("round_id", openRoundId),
+      .select("id")
+      .eq("round_id", openRoundId)
+      .eq("optional", false),
     supabase
       .from("responses")
       .select("id, submitted_at")
@@ -218,7 +290,10 @@ export async function submitResponse(): Promise<SubmitResult> {
     });
     return { ok: false, reason: "failed", error: SURVEY_MESSAGES.submitFailed };
   }
-  const total = totalResult.count ?? 0;
+  const requiredIds = new Set(
+    (totalResult.data ?? []).map((row) => row.id as string)
+  );
+  const total = requiredIds.size;
   if (total === 0) {
     return {
       ok: false,
@@ -245,9 +320,9 @@ export async function submitResponse(): Promise<SubmitResult> {
   }
 
   async function countAnswered(responseId: string): Promise<number | null> {
-    const { count, error } = await supabase
+    const { data, error } = await supabase
       .from("answers")
-      .select("id", { count: "exact", head: true })
+      .select("statement_id")
       .eq("response_id", responseId);
     if (error) {
       console.error("submitResponse: count answers failed", {
@@ -256,7 +331,9 @@ export async function submitResponse(): Promise<SubmitResult> {
       });
       return null;
     }
-    return count ?? 0;
+    return (data ?? []).filter((row) =>
+      requiredIds.has(row.statement_id as string)
+    ).length;
   }
 
   let answered = 0;

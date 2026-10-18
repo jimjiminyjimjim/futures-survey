@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -12,33 +11,36 @@ import {
 } from "@/lib/admin/datetime";
 import type { AdminActionResult } from "@/lib/admin/content-actions";
 
-export type CreateRoundState = { error: string | null };
+export type CreateSurveyState = { error: string | null };
 
 /**
- * Creates the next round as a key-preserving copy of the most recent one
- * (RND-01/RND-04, public.admin_create_round) and redirects to its editor.
- * Logs only the RPC name and error code on failure — never any content.
+ * Creates a brand-new survey with 3 draft sessions, key-preserving-copying
+ * the latest survey's sections/statements (public.admin_create_survey,
+ * surveys v2 part B). Stays on the dashboard — `refresh()` picks up the new
+ * survey at the top of the list. Logs only the RPC name and error code on
+ * failure — never any content.
  */
-export async function createRound(
-  _prev: CreateRoundState,
+export async function createSurvey(
+  _prev: CreateSurveyState,
   _formData: FormData
-): Promise<CreateRoundState> {
+): Promise<CreateSurveyState> {
   if (!(await isCurrentUserAdmin())) {
-    return { error: ADMIN_MESSAGES.createFailed };
+    return { error: ADMIN_MESSAGES.createSurveyFailed };
   }
 
   const supabase = await createClient();
-  const { data: newRoundId, error } = await supabase.rpc(
-    "admin_create_round",
+  const { data: newSurveyId, error } = await supabase.rpc(
+    "admin_create_survey",
     { p_title: null }
   );
 
-  if (error || !newRoundId) {
-    console.error("admin_create_round", error?.code);
-    return { error: ADMIN_MESSAGES.createFailed };
+  if (error || !newSurveyId) {
+    console.error("admin_create_survey", error?.code);
+    return { error: ADMIN_MESSAGES.createSurveyFailed };
   }
 
-  redirect(`/admin/rounds/${newRoundId}`);
+  refresh();
+  return { error: null };
 }
 
 export type UpdateScheduleState = { error: string | null; saved: boolean };

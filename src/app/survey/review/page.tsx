@@ -8,9 +8,10 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { getSignedInUser } from "@/lib/auth/session";
-import { getSurveySnapshot } from "@/lib/survey/queries";
+import { getSurveySnapshot, getResultsConsent } from "@/lib/survey/queries";
 import { SURVEY_MESSAGES } from "@/lib/survey/messages";
 import { NavButton } from "@/components/survey/nav-button";
+import { ResultsConsentStatus } from "@/components/survey/results-consent-status";
 import { SubmitForm } from "./submit-form";
 
 // This route reads cookies() (via getSignedInUser()) on every request,
@@ -33,7 +34,10 @@ export default async function ReviewPage() {
     redirect("/login");
   }
 
-  const snapshot = await getSurveySnapshot(user.id);
+  const [snapshot, resultsConsent] = await Promise.all([
+    getSurveySnapshot(user.id),
+    getResultsConsent(user.id),
+  ]);
   if (
     !snapshot.openRound ||
     snapshot.response?.submittedAt ||
@@ -42,18 +46,21 @@ export default async function ReviewPage() {
     redirect("/");
   }
 
-  const total = snapshot.statements.length;
-  const firstUnanswered = snapshot.statements.find(
-    (s) => !snapshot.answers.has(s.id)
-  );
-  const answered = snapshot.statements.filter((s) =>
-    snapshot.answers.has(s.id)
-  ).length;
+  // Not opted in (including a load error) offers the opt-in checkbox;
+  // opted in shows the status panel + withdraw instead.
+  const offerOptIn = !resultsConsent.optedIn;
+
+  // Completeness counts only required questions — optional predictions
+  // never block submit (same rule as submitResponse and the DB trigger).
+  const required = snapshot.statements.filter((s) => !s.optional);
+  const total = required.length;
+  const firstUnanswered = required.find((s) => !snapshot.answers.has(s.id));
+  const answered = required.filter((s) => snapshot.answers.has(s.id)).length;
   const remaining = total - answered;
   const lastStatement = snapshot.statements[snapshot.statements.length - 1];
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-zinc-50 px-4 py-12 dark:bg-black">
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-black px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle
@@ -84,11 +91,14 @@ export default async function ReviewPage() {
           <NavButton href={`/survey/${lastStatement.key}`} variant="outline">
             {SURVEY_MESSAGES.back}
           </NavButton>
+          {resultsConsent.optedIn ? (
+            <ResultsConsentStatus afterWithdraw="refresh" />
+          ) : null}
           {/* Rendered unconditionally — including while statements remain
               unanswered — so an incomplete submit attempt gets the
               documented rejection message rather than a hidden button. */}
           <div className="pt-4">
-            <SubmitForm />
+            <SubmitForm offerOptIn={offerOptIn} />
           </div>
         </CardContent>
       </Card>
