@@ -161,7 +161,7 @@ export function PresentationDeck({ slides }: { slides: Slide[] }) {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <p
                 data-slot="deck-section-heading"
-                className="text-[40px] leading-[1.1] font-semibold break-words text-pres-ink"
+                className="text-[22px] leading-[1.25] font-semibold break-words text-pres-ink-secondary"
               >
                 {heading.label ? `${heading.label}. ` : ""}
                 {heading.title}

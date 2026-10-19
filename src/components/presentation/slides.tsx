@@ -192,31 +192,42 @@ export function SlideView({
 
     case "rating": {
       const average = slide.average;
+      // Most B items are short one-liners that read well at 44px, but a
+      // long verbatim quote (e.g. sb_2a's SHEIN statement) pushes the
+      // chart below the fold at that size — step the heading down for
+      // long text so the whole slide fits one screen without scrolling.
+      const isLongText = slide.text.length > 120;
       return (
-        <div className="mx-auto flex h-full w-full max-w-6xl flex-col justify-center-safe gap-4">
+        <div className="mx-auto flex h-full w-full max-w-6xl flex-col justify-center-safe gap-3">
           <SourceLine
             statementKey={slide.statementKey}
             label={slide.itemLabel}
             context={slide.context}
-            className="text-[24px] leading-[1.4] text-pres-ink-secondary"
-            logoClassName="h-12 rounded-md bg-white p-1"
+            className="text-[20px] leading-[1.3] text-pres-ink-secondary"
+            logoClassName="h-10 rounded-md bg-white p-1"
           />
           {slide.leadIn ? (
-            <p className="max-w-5xl text-[24px] leading-[1.4] text-pres-ink-secondary">
+            <p className="max-w-5xl text-[20px] leading-[1.3] text-pres-ink-secondary">
               {slide.leadIn}
             </p>
           ) : null}
-          <h2 className="max-w-5xl text-[44px] leading-[1.15] font-semibold break-words">
+          <h2
+            className={
+              isLongText
+                ? "max-w-5xl text-[30px] leading-[1.3] font-semibold break-words"
+                : "max-w-5xl text-[44px] leading-[1.15] font-semibold break-words"
+            }
+          >
             {slide.text}
           </h2>
           {slide.question ? (
-            <p className="max-w-5xl text-[24px] leading-[1.4] text-pres-ink-secondary">
+            <p className="max-w-5xl text-[20px] leading-[1.3] text-pres-ink-secondary">
               {slide.question}
             </p>
           ) : null}
           <RevealedArea revealed={revealed}>
-            <div className="mt-1 flex flex-col gap-6">
-              <div className="flex flex-col gap-3">
+            <div className="mt-1 flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
                 <p className="text-[17px] text-pres-ink-muted">
                   {average != null
                     ? PRESENTATION_MESSAGES.ratingAverage(average)
