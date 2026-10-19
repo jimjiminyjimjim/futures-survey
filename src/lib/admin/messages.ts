@@ -157,7 +157,7 @@ export const ADMIN_MESSAGES = {
   lastAdminHint: "Add another admin first",
   lastAdmin: "Can't remove the last admin — add another admin first.",
   invalidEmail: "Enter a valid email address.",
-  invalidDomain: "Enter a valid domain, like network.rca.ac.uk.",
+  invalidDomain: "Enter a valid domain, like arts.ac.uk.",
   adminDuplicate: "That email is already an admin.",
   domainDuplicate: "That domain is already on the list.",
   noDomainsHeading: "No allowed domains yet",

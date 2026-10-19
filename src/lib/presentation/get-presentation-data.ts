@@ -80,6 +80,7 @@ type SectionWithStatementsRow = {
   prompt: string;
   scale_key: string;
   discussion_prompt: string | null;
+  show_overview: boolean;
   statements: StatementRow[] | null;
 };
 
@@ -90,8 +91,8 @@ export type GetPresentationDataResult =
 /**
  * Server-only. Loads everything the presentation deck needs for one
  * round: the round's own admin_list_rounds row, its sections and
- * statements (every v2 column), scale_options, and three identity-free
- * admin aggregates under the caller's own admin JWT —
+ * statements (every v2 column, plus show_overview), scale_options, and
+ * three identity-free admin aggregates under the caller's own admin JWT —
  * admin_statement_answer_counts (scale), admin_statement_choice_counts
  * (choice_one/choice_multi/choice_exact) and admin_prediction_stats.
  * Never reads an identity-bearing table or function.
@@ -113,7 +114,7 @@ export async function getPresentationData(
     supabase
       .from("sections")
       .select(
-        "sort_order, label, parent_title, title, prompt, scale_key, discussion_prompt, statements(id, key, text, sort_order, kind, options, choice_count, is_key, prediction_of, optional, label, context, question, reveal_text, left_label, right_label)"
+        "sort_order, label, parent_title, title, prompt, scale_key, discussion_prompt, show_overview, statements(id, key, text, sort_order, kind, options, choice_count, is_key, prediction_of, optional, label, context, question, reveal_text, left_label, right_label)"
       )
       .eq("round_id", roundId),
     supabase
@@ -201,6 +202,7 @@ export async function getPresentationData(
       prompt: section.prompt,
       scaleKey: section.scale_key,
       discussionPrompt: section.discussion_prompt,
+      showOverview: section.show_overview,
       statements: (section.statements ?? [])
         .map(toStatement)
         .sort((a, b) => a.sortOrder - b.sortOrder),

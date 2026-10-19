@@ -77,4 +77,12 @@ export const PRESENTATION_MESSAGES = {
   ratingBreakdownLabel: "Answer breakdown from 0 to 10",
   twoEndedLabel: "Where people placed their answer between the two ends",
   averageMarker: "Average",
+
+  // 261019-2w3 — rating overview (C/E)
+  ratingOverviewTitle: (sectionTitle: string) => `${sectionTitle} overview`,
+  ratingOverviewSubtitle: (label: string | null, sortOrder: number) =>
+    label
+      ? `Question ${label} · ranked by average rating out of 10, highest first`
+      : `Section ${sortOrder} · ranked by average rating out of 10, highest first`,
+  ratingRankingLabel: "Statements ranked by average rating",
 } as const;

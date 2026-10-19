@@ -6,8 +6,10 @@
  * object.
  */
 
-/** Wording version recorded on every results_consent row. */
-export const RESULTS_CONSENT_VERSION = "2026-10-18";
+/** Wording version recorded on every results_consent row. 2026-10-19:
+ * consent is now given by pressing the explicit "Submit and save my
+ * responses for graduation" button, not a separate checkbox. */
+export const RESULTS_CONSENT_VERSION = "2026-10-19";
 
 export const SURVEY_MESSAGES = {
   saveFailed:
@@ -34,6 +36,14 @@ export const SURVEY_MESSAGES = {
     sectionLabel?: string | null
   ) =>
     `Question ${sectionLabel ?? `${sectionNumber} of ${totalSections}`} · ${questionInSection} of ${questionsInSection}`,
+  /** The grouped page's progress line, e.g. "Question C · 7 statements". */
+  groupedProgress: (
+    sectionNumber: number,
+    totalSections: number,
+    statementCount: number,
+    sectionLabel?: string | null
+  ) =>
+    `Question ${sectionLabel ?? `${sectionNumber} of ${totalSections}`} · ${statementCount} statements`,
   noRoundHeading: "No session is open right now",
   noRoundBody:
     "When the next session opens, it'll appear here next time you sign in.",
@@ -61,6 +71,11 @@ export const SURVEY_MESSAGES = {
   reviewRemaining: (n: number) => `${n} left to go`,
   reviewFirstUnanswered: "Go to the first unanswered question",
   submitCta: "Submit answers",
+  /** Not-opted-in review screen, save path: opts in then submits. */
+  submitAndSaveCta: "Submit and save my responses for graduation",
+  /** Not-opted-in review screen, no-save path: submits with no consent
+   * (withdrawing any opt-in made on the same screen first). */
+  submitWithoutSavingCta: "Submit and do not save my responses",
   incompleteSubmit: (n: number) =>
     `Answer every question before submitting — ${n} left to go.`,
   submitFailed:
@@ -71,6 +86,10 @@ export const SURVEY_MESSAGES = {
   /** rating end-label line, e.g. "0 = Not at all". */
   ratingEnd: (value: number, label: string) => `${value} = ${label}`,
   twoEndedUnset: "Drag the slider to place your answer between the two ends.",
+  // 2026-10-19: these two no longer sit next to a checkbox. They render as
+  // the consent statement shown above the two submit buttons on the
+  // not-opted-in review screen — the save button ("Submit and save my
+  // responses for graduation") IS the agreement to this statement.
   resultsOptInLabel:
     "Yes, I would like my questionnaires to be securely saved over the next three years and returned to me when I graduate, so I can reflect on how my thinking has changed.",
   resultsOptInHelp:
@@ -81,4 +100,6 @@ export const SURVEY_MESSAGES = {
   resultsWithdrawn: "You've withdrawn your agreement.",
   resultsConsentFailed:
     "We couldn't save your choice. Check your connection and try again.",
+  /** "About this session" dialog trigger, shown on every /survey page. */
+  sessionIntroOpen: "About this session",
 } as const;

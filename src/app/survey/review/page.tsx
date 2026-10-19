@@ -46,8 +46,9 @@ export default async function ReviewPage() {
     redirect("/");
   }
 
-  // Not opted in (including a load error) offers the opt-in checkbox;
-  // opted in shows the status panel + withdraw instead.
+  // Not opted in (including a load error) offers the two submit buttons
+  // (save / do not save); opted in shows the status panel + withdraw
+  // instead.
   const offerOptIn = !resultsConsent.optedIn;
 
   // Completeness counts only required questions — optional predictions

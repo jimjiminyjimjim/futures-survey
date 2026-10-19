@@ -1,5 +1,7 @@
 import { connection } from "next/server";
 import { getSignedInUser, isCurrentUserAdmin } from "@/lib/auth/session";
+import { getSurveySnapshot } from "@/lib/survey/queries";
+import { partLabel, partAndQuestionsLabel } from "@/lib/survey/state";
 import { ParticipantHeader } from "@/components/participant-header";
 
 // No visible menu bar on /survey pages — full-bleed black background
@@ -16,12 +18,38 @@ export default async function SurveyLayout({
 }) {
   await connection(); // avoid cacheComponents speculative-prerender Date.now() error
   const user = await getSignedInUser();
-  const isAdmin = user ? await isCurrentUserAdmin() : false;
+
+  const [isAdmin, snapshot] = user
+    ? await Promise.all([isCurrentUserAdmin(), getSurveySnapshot(user.id)])
+    : [false, null];
+
+  // getSurveySnapshot is React-`cache`d, so this call reuses the same
+  // result the page itself fetches in the same request — no extra query.
+  const sessionIntro =
+    snapshot?.openRound && !snapshot.hasError
+      ? {
+          surveyTitle: snapshot.openRound.surveyTitle,
+          roundTitle: snapshot.openRound.title,
+          intro: snapshot.openRound.intro,
+          partLabel: snapshot.openRound.intro
+            ? partLabel(snapshot.openRound.partNumber, snapshot.openRound.totalParts)
+            : partAndQuestionsLabel(
+                snapshot.openRound.partNumber,
+                snapshot.openRound.totalParts,
+                new Set(snapshot.statements.map((s) => s.sectionId)).size
+              ),
+        }
+      : null;
 
   return (
     <>
       {user ? (
-        <ParticipantHeader email={user.email} isAdmin={isAdmin} variant="floating" />
+        <ParticipantHeader
+          email={user.email}
+          isAdmin={isAdmin}
+          variant="floating"
+          sessionIntro={sessionIntro}
+        />
       ) : null}
       {children}
     </>

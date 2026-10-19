@@ -3,13 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { submitResponse } from "@/lib/survey/actions";
-import { optInToResults } from "@/lib/survey/consent-actions";
+import { optInToResults, withdrawResultsConsent } from "@/lib/survey/consent-actions";
 import { SURVEY_MESSAGES } from "@/lib/survey/messages";
 
 const OPT_IN_LABEL_ID = "results-opt-in-label";
 const OPT_IN_HELP_ID = "results-opt-in-help";
+const CONSENT_STATEMENT_ID = "results-consent-statement";
 
 /**
  * The submit control for /survey/review. Never hidden or replaced after a
@@ -18,27 +18,43 @@ const OPT_IN_HELP_ID = "results-opt-in-help";
  * disappearing. A thrown/aborted network call is caught and shown as the
  * same friendly alert as a server-reported failure.
  *
- * When `offerOptIn` is set, a large, unticked-by-default opt-in checkbox
- * is shown above the submit button. Submitting works whether or not it's
- * ticked. If ticked, optInToResults() runs first — on failure, the
- * participant can retry or untick and submit anyway.
+ * When `offerOptIn` is set (2026-10-19 two-button behaviour), the consent
+ * statement is shown with two equal-weight buttons below it: "Submit and
+ * save my responses for graduation" opts in (optInToResults) and then
+ * submits; "Submit and do not save my responses" submits with no consent,
+ * withdrawing any opt-in made on THIS screen first (so a retry after an
+ * incomplete-submit rejection never leaves a recorded opt-in that
+ * contradicts the button actually pressed). When offerOptIn is false (the
+ * participant already opted in earlier), the single "Submit answers"
+ * button is unchanged and never opts in.
  */
 export function SubmitForm({ offerOptIn }: { offerOptIn: boolean }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [optedIn, setOptedIn] = useState(false);
+  // True only once optInToResults has succeeded during THIS page visit —
+  // not persisted state, just enough to know whether "do not save" must
+  // withdraw it before submitting.
+  const [optedInHere, setOptedInHere] = useState(false);
 
-  function onSubmit() {
+  function submitWith(save: boolean) {
     setError(null);
     startTransition(async () => {
       try {
-        if (optedIn) {
+        if (save) {
           const consentResult = await optInToResults();
           if (!consentResult.ok) {
             setError(SURVEY_MESSAGES.resultsConsentFailed);
             return;
           }
+          setOptedInHere(true);
+        } else if (optedInHere) {
+          const withdrawResult = await withdrawResultsConsent();
+          if (!withdrawResult.ok) {
+            setError(SURVEY_MESSAGES.resultsConsentFailed);
+            return;
+          }
+          setOptedInHere(false);
         }
 
         const result = await submitResponse();
@@ -58,16 +74,11 @@ export function SubmitForm({ offerOptIn }: { offerOptIn: boolean }) {
   return (
     <div className="flex flex-col gap-4">
       {offerOptIn ? (
-        <label className="has-data-checked:bg-primary/10 flex items-start gap-4 rounded-xl border-2 border-primary bg-primary/5 p-5">
-          <Checkbox
-            checked={optedIn}
-            disabled={isPending}
-            onCheckedChange={(checked) => setOptedIn(checked === true)}
-            className="mt-0.5 size-6 [&_svg]:size-4"
-            aria-labelledby={OPT_IN_LABEL_ID}
-            aria-describedby={OPT_IN_HELP_ID}
-          />
-          <div className="flex flex-col gap-1">
+        <>
+          <div
+            id={CONSENT_STATEMENT_ID}
+            className="flex flex-col gap-1 rounded-xl border-2 border-primary bg-primary/5 p-5"
+          >
             <span id={OPT_IN_LABEL_ID} className="text-lg font-semibold">
               {SURVEY_MESSAGES.resultsOptInLabel}
             </span>
@@ -78,17 +89,37 @@ export function SubmitForm({ offerOptIn }: { offerOptIn: boolean }) {
               {SURVEY_MESSAGES.resultsOptInHelp}
             </span>
           </div>
-        </label>
-      ) : null}
-      <Button
-        type="button"
-        variant="default"
-        className="h-11 w-full px-4 text-base"
-        disabled={isPending}
-        onClick={onSubmit}
-      >
-        {SURVEY_MESSAGES.submitCta}
-      </Button>
+          <Button
+            type="button"
+            variant="default"
+            className="h-auto min-h-11 w-full px-4 py-2.5 text-base whitespace-normal"
+            disabled={isPending}
+            aria-describedby={CONSENT_STATEMENT_ID}
+            onClick={() => submitWith(true)}
+          >
+            {SURVEY_MESSAGES.submitAndSaveCta}
+          </Button>
+          <Button
+            type="button"
+            variant="default"
+            className="h-auto min-h-11 w-full px-4 py-2.5 text-base whitespace-normal"
+            disabled={isPending}
+            onClick={() => submitWith(false)}
+          >
+            {SURVEY_MESSAGES.submitWithoutSavingCta}
+          </Button>
+        </>
+      ) : (
+        <Button
+          type="button"
+          variant="default"
+          className="h-11 w-full px-4 text-base"
+          disabled={isPending}
+          onClick={() => submitWith(false)}
+        >
+          {SURVEY_MESSAGES.submitCta}
+        </Button>
+      )}
       {error ? (
         <p role="alert" className="text-sm text-destructive">
           {error}

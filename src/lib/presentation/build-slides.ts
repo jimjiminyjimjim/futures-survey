@@ -3,11 +3,14 @@
  * slide per statement in section order, by kind — scale/choice/
  * prediction — then a discussion slide if the section has one, then a
  * trailing familiarity-overview slide for any familiarity section with
- * at least one scale statement). Deterministic: the same input always
- * produces the same slide array.
+ * at least one scale statement, then a trailing rating-overview slide
+ * for any show_overview section with at least one rating statement —
+ * 261019-2w3). Deterministic: the same input always produces the same
+ * slide array.
  */
 import {
   rankByExplainPercent,
+  rankByMeanFamiliarity,
   meanFamiliarity,
   explainCount as explainCountOf,
   explainPercent as explainPercentOf,
@@ -22,6 +25,7 @@ import type {
   Slide,
   OptionCount,
   DeckStep,
+  DeckSectionHeading,
 } from "./types";
 
 export type BuildSlidesResult = {
@@ -345,6 +349,44 @@ export function buildSlides(input: PresentationInput): BuildSlidesResult {
         terms: rankByExplainPercent(terms),
       });
     }
+
+    // 261019-2w3: independent of the familiarity-overview check above —
+    // a section can have show_overview true regardless of its scaleKey,
+    // and the gate is "has at least one rating statement", not scaleKey.
+    const ratingStatements = sortedStatements.filter(
+      (s) => (s.kind ?? "scale") === "rating"
+    );
+    if (section.showOverview === true && ratingStatements.length > 0) {
+      // rankByMeanFamiliarity is reused as-is for 0-10 rating averages:
+      // it only special-cases n === 0 (aZero/bZero), and otherwise
+      // compares means by exact cross-multiplication (b.sum*a.n -
+      // a.sum*b.n), which is exactly as valid when a mean is 0 with
+      // n > 0 (an answered item whose sum happens to be 0 still beats
+      // an unanswered item, via the bZero/aZero branches above it).
+      const items = ratingStatements.map((statement) => {
+        const byValue = scaleCountsByStatement.get(statement.id) ?? new Map();
+        const options = ratingOptionCounts(byValue);
+        const sum = options.reduce((s, o) => s + o.value * o.count, 0);
+        const n = options.reduce((s, o) => s + o.count, 0);
+        return {
+          statementKey: statement.key,
+          text: statement.text,
+          sortOrder: statement.sortOrder,
+          sum,
+          n,
+          average: averageFromCounts(options),
+        };
+      });
+      const sectionRespondentCount = Math.max(0, ...items.map((i) => i.n));
+      slides.push({
+        kind: "rating-overview",
+        sectionSortOrder: section.sortOrder,
+        ...(section.label !== undefined ? { sectionLabel: section.label } : {}),
+        sectionTitle: section.title,
+        respondentCount: sectionRespondentCount,
+        items: rankByMeanFamiliarity(items),
+      });
+    }
   }
 
   return { slides, respondentCount };
@@ -357,20 +399,36 @@ const RESULTS_SLIDE_KINDS = new Set<Slide["kind"]>([
   "two-ended",
   "prediction",
   "familiarity-overview",
+  "rating-overview",
 ]);
+
+/** True only for a familiarity term's own statement slide. Presenters
+ * found two clicks per term too slow (2026-10-19 feedback), so those
+ * slides reveal their results the moment they appear. Deliberately
+ * narrow — "statement" also covers every agreement-scale statement in
+ * Sessions 2/3, which must stay question-then-reveal, so the check is on
+ * scaleKey, not just slide.kind. */
+function isSingleStepResultsSlide(slide: Slide): boolean {
+  return slide.kind === "statement" && slide.scaleKey === "familiarity";
+}
 
 /**
  * Expands a slide array into deck steps: every results slide (statement,
- * choice, rating, two-ended, prediction, familiarity-overview) gives two
- * steps — revealed: false then revealed: true — so the first advance onto
- * it shows the question only and the next reveals the results. Every
- * other slide (title, section-intro, discussion) gives one revealed step.
- * Pure and deterministic.
+ * choice, rating, two-ended, prediction, familiarity-overview,
+ * rating-overview) gives two steps — revealed: false then revealed:
+ * true — so the first advance onto it shows the question only and the
+ * next reveals the results. The one exception is a familiarity term's
+ * own statement slide (isSingleStepResultsSlide): it gets a single
+ * revealed: true step, so it shows its results as soon as it appears.
+ * Agreement statement slides and the familiarity-overview/
+ * rating-overview slides keep question-then-reveal. Every other slide
+ * (title, section-intro, discussion) also gives one revealed step. Pure
+ * and deterministic.
  */
 export function buildDeckSteps(slides: Slide[]): DeckStep[] {
   const steps: DeckStep[] = [];
   slides.forEach((slide, slideIndex) => {
-    if (RESULTS_SLIDE_KINDS.has(slide.kind)) {
+    if (RESULTS_SLIDE_KINDS.has(slide.kind) && !isSingleStepResultsSlide(slide)) {
       steps.push({ slideIndex, revealed: false });
       steps.push({ slideIndex, revealed: true });
     } else {
@@ -378,4 +436,34 @@ export function buildDeckSteps(slides: Slide[]): DeckStep[] {
     }
   });
   return steps;
+}
+
+/**
+ * Derives the persistent section heading for every slide, in one pass.
+ * A "section-intro" slide sets the current heading (and is itself the
+ * first slide to carry it); a "title" slide resets it to null. Every
+ * other slide carries forward whatever heading is current. This relies
+ * on buildSlides always emitting a section-intro slide before any of a
+ * section's other slides — true for every section buildSlides produces.
+ * Pure and deterministic.
+ */
+export function buildSectionHeadings(
+  slides: Slide[]
+): (DeckSectionHeading | null)[] {
+  const headings: (DeckSectionHeading | null)[] = [];
+  let current: DeckSectionHeading | null = null;
+  for (const slide of slides) {
+    if (slide.kind === "title") {
+      current = null;
+    } else if (slide.kind === "section-intro") {
+      current = {
+        label: slide.label,
+        title: slide.sectionTitle,
+        parentLabel: slide.parentLabel,
+        parentTitle: slide.parentTitle,
+      };
+    }
+    headings.push(current);
+  }
+  return headings;
 }

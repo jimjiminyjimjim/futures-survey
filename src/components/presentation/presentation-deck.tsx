@@ -5,14 +5,15 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { PRESENTATION_MESSAGES } from "@/lib/presentation/messages";
-import { buildDeckSteps } from "@/lib/presentation/build-slides";
+import { buildDeckSteps, buildSectionHeadings } from "@/lib/presentation/build-slides";
 import type { Slide } from "@/lib/presentation/types";
 import { KeyQuestionTag, SlideView } from "./slides";
 
-/** statement/choice/rating/two-ended slides carry a section label+title
- * (and optionally the key-question tag) that used to repeat inside every
- * slide body. It now lives once, top-right of the exit-presentation
- * chevron, at the same height. */
+/** statement/choice/rating/two-ended slides carry an isKey flag. The
+ * persistent header (buildSectionHeadings) now renders the section
+ * label/title itself; hasSectionLabel is kept only to decide whether the
+ * current slide should also show the KeyQuestionTag next to that
+ * heading. */
 type SlideWithSection = Extract<
   Slide,
   { sectionLabel: string | null; sectionTitle: string; isKey: boolean }
@@ -66,6 +67,7 @@ function isInsideClickControl(target: EventTarget | null): boolean {
 
 export function PresentationDeck({ slides }: { slides: Slide[] }) {
   const steps = useMemo(() => buildDeckSteps(slides), [slides]);
+  const headings = useMemo(() => buildSectionHeadings(slides), [slides]);
   const [stepIndex, setStepIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const stepsLength = steps.length;
@@ -117,6 +119,7 @@ export function PresentationDeck({ slides }: { slides: Slide[] }) {
 
   const currentStep = steps[stepIndex];
   const current = slides[currentStep.slideIndex];
+  const heading = headings[currentStep.slideIndex];
   const total = slides.length;
   // The counter/aria-label always reflect the SLIDE position, not the
   // step — a results slide's question/reveal steps both read the same
@@ -138,7 +141,7 @@ export function PresentationDeck({ slides }: { slides: Slide[] }) {
         className="shrink-0 [&_[data-slot=progress-track]]:h-1 [&_[data-slot=progress-track]]:w-full [&_[data-slot=progress-track]]:rounded-none [&_[data-slot=progress-track]]:bg-pres-border [&_[data-slot=progress-indicator]]:bg-pres-ink"
       />
 
-      <div className="flex items-center justify-between px-8 py-4 text-[17px] text-pres-ink-muted">
+      <div className="flex items-start gap-4 px-8 pt-4 pb-2">
         <Link
           href="/admin"
           prefetch={false}
@@ -147,13 +150,24 @@ export function PresentationDeck({ slides }: { slides: Slide[] }) {
         >
           <ChevronLeft className="size-6" aria-hidden="true" />
         </Link>
-        {hasSectionLabel(current) ? (
-          <div className="flex items-center gap-3">
-            <p>
-              {current.sectionLabel ? `${current.sectionLabel}. ` : ""}
-              {current.sectionTitle}
-            </p>
-            {current.isKey ? <KeyQuestionTag /> : null}
+        {heading ? (
+          <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
+            {heading.parentTitle ? (
+              <p className="text-[17px] text-pres-ink-muted">
+                {heading.parentLabel ? `${heading.parentLabel}. ` : ""}
+                {heading.parentTitle}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <p
+                data-slot="deck-section-heading"
+                className="text-[40px] leading-[1.1] font-semibold break-words text-pres-ink"
+              >
+                {heading.label ? `${heading.label}. ` : ""}
+                {heading.title}
+              </p>
+              {hasSectionLabel(current) && current.isKey ? <KeyQuestionTag /> : null}
+            </div>
           </div>
         ) : null}
       </div>

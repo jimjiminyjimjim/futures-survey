@@ -9,7 +9,7 @@ import {
   rankByMeanFamiliarity,
   formatMean,
 } from "@/lib/presentation/chart-math";
-import { buildSlides } from "@/lib/presentation/build-slides";
+import { buildSlides, buildDeckSteps, buildSectionHeadings } from "@/lib/presentation/build-slides";
 import type { PresentationInput, OptionCount } from "@/lib/presentation/types";
 
 /**
@@ -319,5 +319,448 @@ test.describe("presentation maths — @static (no DB)", () => {
     const resultA = buildSlides(withCounts);
     const resultB = buildSlides(withCounts);
     expect(resultA).toEqual(resultB);
+  });
+});
+
+test.describe("deck steps and section headings — @static (no DB)", () => {
+  // Fixture: title, intro A, stmt A1, stmt A2, familiarity-overview, intro B,
+  // stmt B1 — 7 slides, indices 0-6.
+  const sections: PresentationInput["sections"] = [
+    {
+      sortOrder: 1,
+      label: "A",
+      title: "Familiarity",
+      prompt: "Prompt A",
+      scaleKey: "familiarity",
+      statements: [
+        { id: "a1", key: "a1", text: "Term A1", sortOrder: 1 },
+        { id: "a2", key: "a2", text: "Term A2", sortOrder: 2 },
+      ],
+    },
+    {
+      sortOrder: 2,
+      label: "B",
+      title: "Agreement",
+      prompt: "Prompt B",
+      scaleKey: "agreement",
+      statements: [{ id: "b1", key: "b1", text: "Statement B1", sortOrder: 1 }],
+    },
+  ];
+
+  const scaleOptions: PresentationInput["scaleOptions"] = [
+    ...[1, 2, 3, 4].map((v) => ({
+      scaleKey: "familiarity",
+      value: v,
+      label: FAMILIARITY_LABELS[v],
+    })),
+    ...[1, 2, 3, 4, 5].map((v) => ({
+      scaleKey: "agreement",
+      value: v,
+      label: AGREEMENT_LABELS[v],
+    })),
+  ];
+
+  const input: PresentationInput = {
+    round: { title: "Round", roundNumber: 1, submittedCount: 0 },
+    sections,
+    scaleOptions,
+    counts: [],
+  };
+
+  const { slides } = buildSlides(input);
+
+  test("buildDeckSteps: familiarity statement slides reveal in one step; every other results slide stays two-step", () => {
+    expect(slides.map((s) => s.kind)).toEqual([
+      "title",
+      "section-intro",
+      "statement",
+      "statement",
+      "familiarity-overview",
+      "section-intro",
+      "statement",
+    ]);
+
+    const steps = buildDeckSteps(slides);
+    expect(steps).toHaveLength(9);
+
+    // The two familiarity statement slides (indices 2, 3) appear exactly
+    // once each, revealed: true.
+    for (const familiarityIndex of [2, 3]) {
+      const matching = steps.filter((st) => st.slideIndex === familiarityIndex);
+      expect(matching).toEqual([{ slideIndex: familiarityIndex, revealed: true }]);
+    }
+
+    // The agreement statement slide (index 6) appears twice: false then true.
+    const agreementSteps = steps.filter((st) => st.slideIndex === 6);
+    expect(agreementSteps).toEqual([
+      { slideIndex: 6, revealed: false },
+      { slideIndex: 6, revealed: true },
+    ]);
+
+    // The familiarity-overview (index 4) appears twice: false then true.
+    const overviewSteps = steps.filter((st) => st.slideIndex === 4);
+    expect(overviewSteps).toEqual([
+      { slideIndex: 4, revealed: false },
+      { slideIndex: 4, revealed: true },
+    ]);
+
+    // title (0) and section-intro (1, 5) slides appear once each, revealed: true.
+    for (const onceIndex of [0, 1, 5]) {
+      const matching = steps.filter((st) => st.slideIndex === onceIndex);
+      expect(matching).toEqual([{ slideIndex: onceIndex, revealed: true }]);
+    }
+  });
+
+  test("buildSectionHeadings: same length as slides, title null, every other slide in a section carries that section's heading", () => {
+    const headings = buildSectionHeadings(slides);
+    expect(headings).toHaveLength(slides.length);
+    expect(headings[0]).toBeNull();
+
+    const headingA = {
+      label: "A",
+      title: "Familiarity",
+      parentLabel: null,
+      parentTitle: null,
+    };
+    for (const i of [1, 2, 3, 4]) {
+      expect(headings[i]).toEqual(headingA);
+    }
+
+    const headingB = {
+      label: "B",
+      title: "Agreement",
+      parentLabel: null,
+      parentTitle: null,
+    };
+    for (const i of [5, 6]) {
+      expect(headings[i]).toEqual(headingB);
+    }
+  });
+
+  test("buildSectionHeadings: a subsection label like '2a' with a parentTitle produces parentLabel '2' on its intro and statement slides", () => {
+    const subSections: PresentationInput["sections"] = [
+      {
+        sortOrder: 1,
+        label: "2a",
+        parentTitle: "What is design?",
+        title: "Sub",
+        prompt: "P",
+        scaleKey: "agreement",
+        statements: [{ id: "x1", key: "x1", text: "X1", sortOrder: 1 }],
+      },
+    ];
+    const subInput: PresentationInput = {
+      round: { title: "Round", roundNumber: 1, submittedCount: 0 },
+      sections: subSections,
+      scaleOptions: [1, 2, 3, 4, 5].map((v) => ({
+        scaleKey: "agreement",
+        value: v,
+        label: AGREEMENT_LABELS[v],
+      })),
+      counts: [],
+    };
+    const { slides: subSlides } = buildSlides(subInput);
+    // title, section-intro, statement
+    expect(subSlides.map((s) => s.kind)).toEqual([
+      "title",
+      "section-intro",
+      "statement",
+    ]);
+    const subHeadings = buildSectionHeadings(subSlides);
+    const expected = {
+      label: "2a",
+      title: "Sub",
+      parentLabel: "2",
+      parentTitle: "What is design?",
+    };
+    expect(subHeadings[1]).toEqual(expected);
+    expect(subHeadings[2]).toEqual(expected);
+  });
+});
+
+test.describe("rating overview — @static (no DB)", () => {
+  // Plain rating-statement fixture helper. Rating statements read counts
+  // from `counts`, not scale_options, so no options array is needed.
+  function ratingStatement(
+    key: string,
+    sortOrder: number
+  ): PresentationInput["sections"][number]["statements"][number] {
+    return { id: key, key, text: `Statement ${key}`, sortOrder, kind: "rating" };
+  }
+
+  test("buildSlides: show_overview section produces a ranked rating-overview slide after its rating statements", () => {
+    const sections: PresentationInput["sections"] = [
+      {
+        sortOrder: 3,
+        label: "C",
+        title: "When trust is broken",
+        prompt: "P",
+        scaleKey: "agreement",
+        showOverview: true,
+        statements: [
+          ratingStatement("r1", 1),
+          ratingStatement("r2", 2),
+          ratingStatement("r3", 3),
+          ratingStatement("r4", 4),
+          ratingStatement("r5", 5),
+          ratingStatement("r6", 6),
+        ],
+      },
+    ];
+    const input: PresentationInput = {
+      round: { title: "R", roundNumber: 1, submittedCount: 0 },
+      sections,
+      scaleOptions: [],
+      counts: [
+        { statementId: "r1", value: 2, count: 2 },
+        { statementId: "r2", value: 8, count: 1 },
+        { statementId: "r2", value: 9, count: 1 },
+        { statementId: "r3", value: 0, count: 3 },
+        { statementId: "r5", value: 4, count: 1 },
+        { statementId: "r6", value: 4, count: 2 },
+      ],
+    };
+    const { slides } = buildSlides(input);
+    expect(slides.map((s) => s.kind)).toEqual([
+      "title",
+      "section-intro",
+      "rating",
+      "rating",
+      "rating",
+      "rating",
+      "rating",
+      "rating",
+      "rating-overview",
+    ]);
+    const overview = slides[slides.length - 1];
+    if (overview.kind !== "rating-overview") {
+      throw new Error("expected a trailing rating-overview slide");
+    }
+    expect(overview.items.map((i) => i.statementKey)).toEqual([
+      "r2",
+      "r5",
+      "r6",
+      "r1",
+      "r3",
+      "r4",
+    ]);
+    expect(overview.items.map((i) => i.average)).toEqual([8.5, 4, 4, 2, 0, null]);
+    expect(overview.items.map((i) => i.n)).toEqual([2, 1, 2, 2, 3, 0]);
+    expect(overview.sectionLabel).toBe("C");
+    expect(overview.sectionTitle).toBe("When trust is broken");
+    expect(overview.sectionSortOrder).toBe(3);
+    expect(overview.respondentCount).toBe(3);
+
+    // Every item's average equals the average on its own rating slide.
+    const ratingSlides = slides.filter((s) => s.kind === "rating");
+    for (const item of overview.items) {
+      const own = ratingSlides.find(
+        (s) => s.kind === "rating" && s.statementKey === item.statementKey
+      );
+      expect(own && own.kind === "rating" ? own.average : undefined).toBe(
+        item.average
+      );
+    }
+  });
+
+  test("buildSlides: no showOverview flag (absent or false) produces no rating-overview slide", () => {
+    const baseSection = {
+      sortOrder: 3,
+      label: "C",
+      title: "When trust is broken",
+      prompt: "P",
+      scaleKey: "agreement",
+      statements: [ratingStatement("r1", 1)],
+    };
+    const inputAbsent: PresentationInput = {
+      round: { title: "R", roundNumber: 1, submittedCount: 0 },
+      sections: [baseSection],
+      scaleOptions: [],
+      counts: [],
+    };
+    expect(
+      buildSlides(inputAbsent).slides.some((s) => s.kind === "rating-overview")
+    ).toBe(false);
+
+    const inputFalse: PresentationInput = {
+      round: { title: "R", roundNumber: 1, submittedCount: 0 },
+      sections: [{ ...baseSection, showOverview: false }],
+      scaleOptions: [],
+      counts: [],
+    };
+    expect(
+      buildSlides(inputFalse).slides.some((s) => s.kind === "rating-overview")
+    ).toBe(false);
+  });
+
+  test("buildSlides: showOverview gates are independent per scale and ignore non-rating statements", () => {
+    const familiaritySection: PresentationInput["sections"][number] = {
+      sortOrder: 1,
+      label: "A",
+      title: "Familiarity",
+      prompt: "P",
+      scaleKey: "familiarity",
+      showOverview: true,
+      statements: [
+        { id: "f1", key: "f1", text: "Term 1", sortOrder: 1 },
+        { id: "f2", key: "f2", text: "Term 2", sortOrder: 2 },
+      ],
+    };
+    const familiarityScaleOptions: PresentationInput["scaleOptions"] = [1, 2, 3, 4].map(
+      (v) => ({ scaleKey: "familiarity", value: v, label: FAMILIARITY_LABELS[v] })
+    );
+    const familiarityInput: PresentationInput = {
+      round: { title: "R", roundNumber: 1, submittedCount: 0 },
+      sections: [familiaritySection],
+      scaleOptions: familiarityScaleOptions,
+      counts: [],
+    };
+    const familiarityResult = buildSlides(familiarityInput);
+    expect(
+      familiarityResult.slides.filter((s) => s.kind === "familiarity-overview")
+    ).toHaveLength(1);
+    expect(
+      familiarityResult.slides.filter((s) => s.kind === "rating-overview")
+    ).toHaveLength(0);
+
+    const mixedSection: PresentationInput["sections"][number] = {
+      sortOrder: 3,
+      label: "C",
+      title: "When trust is broken",
+      prompt: "P",
+      scaleKey: "agreement",
+      showOverview: true,
+      statements: [
+        ratingStatement("r1", 1),
+        ratingStatement("r2", 2),
+        {
+          id: "c1",
+          key: "c1",
+          text: "Choice",
+          sortOrder: 3,
+          kind: "choice_one",
+          options: [{ value: 1, label: "Yes" }],
+        },
+      ],
+    };
+    const mixedInput: PresentationInput = {
+      round: { title: "R", roundNumber: 1, submittedCount: 0 },
+      sections: [mixedSection],
+      scaleOptions: [],
+      counts: [],
+      choiceCounts: [],
+    };
+    const mixedResult = buildSlides(mixedInput);
+    const mixedOverview = mixedResult.slides.find(
+      (s) => s.kind === "rating-overview"
+    );
+    if (!mixedOverview || mixedOverview.kind !== "rating-overview") {
+      throw new Error("expected a rating-overview slide");
+    }
+    expect(mixedOverview.items.map((i) => i.statementKey)).toEqual(["r1", "r2"]);
+  });
+
+  test("buildSlides: an all-zero-respondent show_overview section shows every item at n 0 / average null, in sortOrder, independent of other sections' answers", () => {
+    const sectionB: PresentationInput["sections"][number] = {
+      sortOrder: 2,
+      label: "B",
+      title: "Section B",
+      prompt: "P",
+      scaleKey: "agreement",
+      statements: [ratingStatement("b1", 1)],
+    };
+    const sectionE: PresentationInput["sections"][number] = {
+      sortOrder: 5,
+      label: "E",
+      title: "How scepticism affects me",
+      prompt: "P",
+      scaleKey: "agreement",
+      showOverview: true,
+      statements: [
+        ratingStatement("e1", 1),
+        ratingStatement("e2", 2),
+        ratingStatement("e3", 3),
+      ],
+    };
+    const input: PresentationInput = {
+      round: { title: "R", roundNumber: 1, submittedCount: 0 },
+      sections: [sectionB, sectionE],
+      scaleOptions: [],
+      counts: [{ statementId: "b1", value: 7, count: 4 }],
+    };
+    const { slides } = buildSlides(input);
+    const titleSlide = slides[0];
+    if (titleSlide.kind !== "title") {
+      throw new Error("expected a title slide");
+    }
+    expect(titleSlide.respondentCount).toBe(4);
+
+    const overview = slides.find((s) => s.kind === "rating-overview");
+    if (!overview || overview.kind !== "rating-overview") {
+      throw new Error("expected a rating-overview slide for E");
+    }
+    expect(overview.respondentCount).toBe(0);
+    expect(overview.items.map((i) => i.statementKey)).toEqual(["e1", "e2", "e3"]);
+    expect(overview.items.every((i) => i.n === 0)).toBe(true);
+    expect(overview.items.every((i) => i.average === null)).toBe(true);
+  });
+
+  test("buildDeckSteps/buildSectionHeadings: the rating-overview slide stays two-step and inherits its section's heading", () => {
+    const sections: PresentationInput["sections"] = [
+      {
+        sortOrder: 3,
+        label: "C",
+        title: "When trust is broken",
+        prompt: "P",
+        scaleKey: "agreement",
+        showOverview: true,
+        statements: [
+          ratingStatement("r1", 1),
+          ratingStatement("r2", 2),
+          ratingStatement("r3", 3),
+          ratingStatement("r4", 4),
+          ratingStatement("r5", 5),
+          ratingStatement("r6", 6),
+        ],
+      },
+    ];
+    const input: PresentationInput = {
+      round: { title: "R", roundNumber: 1, submittedCount: 0 },
+      sections,
+      scaleOptions: [],
+      counts: [
+        { statementId: "r1", value: 2, count: 2 },
+        { statementId: "r2", value: 8, count: 1 },
+        { statementId: "r2", value: 9, count: 1 },
+        { statementId: "r3", value: 0, count: 3 },
+        { statementId: "r5", value: 4, count: 1 },
+        { statementId: "r6", value: 4, count: 2 },
+      ],
+    };
+    const { slides } = buildSlides(input);
+    const overviewIndex = slides.findIndex((s) => s.kind === "rating-overview");
+    expect(overviewIndex).toBeGreaterThan(-1);
+
+    const steps = buildDeckSteps(slides);
+    const overviewSteps = steps.filter((st) => st.slideIndex === overviewIndex);
+    expect(overviewSteps).toEqual([
+      { slideIndex: overviewIndex, revealed: false },
+      { slideIndex: overviewIndex, revealed: true },
+    ]);
+    for (let i = 2; i <= 7; i += 1) {
+      const ratingSteps = steps.filter((st) => st.slideIndex === i);
+      expect(ratingSteps).toEqual([
+        { slideIndex: i, revealed: false },
+        { slideIndex: i, revealed: true },
+      ]);
+    }
+
+    const headings = buildSectionHeadings(slides);
+    expect(headings[overviewIndex]).toEqual({
+      label: "C",
+      title: "When trust is broken",
+      parentLabel: null,
+      parentTitle: null,
+    });
   });
 });

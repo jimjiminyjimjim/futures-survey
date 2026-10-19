@@ -26,6 +26,12 @@ export type OrderedStatement = {
   sectionLabel: string | null;
   /** Parent section title for subsections, e.g. "What is design?" for 2a. */
   sectionParentTitle: string | null;
+  /** true when every statement in this section is answered on one page.
+   * Requires sections.grouped = true AND every statement in the section
+   * being kind "rating" — a flag set by mistake on a mixed section falls
+   * back to today's one-per-screen flow instead of rendering a broken
+   * page. See the computation below, in the mapping loop. */
+  sectionGrouped: boolean;
   scaleKey: string;
   kind: QuestionKind;
   /**
@@ -84,6 +90,7 @@ type SectionRow = {
   scale_key: string;
   label: string | null;
   parent_title: string | null;
+  grouped: boolean;
   statements: {
     id: string;
     key: string;
@@ -197,7 +204,7 @@ export const getSurveySnapshot = cache(
         supabase
           .from("rounds")
           .select(
-            "id, title, session_number, intro, surveys(title), sections(id, sort_order, title, prompt, scale_key, label, parent_title, statements(id, key, sort_order, text, kind, options, choice_count, optional, prediction_of, label, context, question, left_label, right_label))"
+            "id, title, session_number, intro, surveys(title), sections(id, sort_order, title, prompt, scale_key, label, parent_title, grouped, statements(id, key, sort_order, text, kind, options, choice_count, optional, prediction_of, label, context, question, left_label, right_label))"
           )
           .eq("id", openRoundId)
           .maybeSingle(),
@@ -272,6 +279,13 @@ export const getSurveySnapshot = cache(
       const sectionStatements = [...section.statements].sort(
         (a, b) => a.sort_order - b.sort_order
       );
+      // Computed once per section: the grouped page only renders rating
+      // rows, so a `grouped` flag set by mistake on a mixed section falls
+      // back to today's one-per-screen flow instead of rendering a broken
+      // page.
+      const sectionGrouped =
+        section.grouped === true &&
+        section.statements.every((st) => st.kind === "rating");
       for (const statement of sectionStatements) {
         const kind = statement.kind;
         const options =
@@ -290,6 +304,7 @@ export const getSurveySnapshot = cache(
           sectionPrompt: section.prompt,
           sectionLabel: section.label,
           sectionParentTitle: section.parent_title,
+          sectionGrouped,
           scaleKey: section.scale_key,
           kind,
           options,

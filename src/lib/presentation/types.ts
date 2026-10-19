@@ -53,6 +53,22 @@ export type OverviewTerm = {
   explainPercent: number;
 };
 
+/**
+ * A single rating statement's ranking inputs, carried through to the
+ * rating-overview slide (261019-2w3). sum/n feed rankByMeanFamiliarity's
+ * exact cross-multiplication, the same technique OverviewTerm uses.
+ * average is the 1 dp mean from averageFromCounts, or null when n is 0
+ * (nobody has answered that statement).
+ */
+export type RatingOverviewItem = {
+  statementKey: string;
+  text: string;
+  sortOrder: number;
+  sum: number;
+  n: number;
+  average: number | null;
+};
+
 export type Slide =
   | {
       kind: "title";
@@ -161,11 +177,32 @@ export type Slide =
       sectionLabel?: string | null;
       respondentCount: number;
       terms: OverviewTerm[];
+    }
+  | {
+      kind: "rating-overview";
+      sectionSortOrder: number;
+      /** Display numbering, e.g. "C". Optional, same convention as familiarity-overview. */
+      sectionLabel?: string | null;
+      /** Per-section heading text, because C and E have different titles. */
+      sectionTitle: string;
+      /** Section-scoped: the max n across this section's rating items. */
+      respondentCount: number;
+      items: RatingOverviewItem[];
     };
 
 /** One step of the deck: a slide, and (for results slides) whether the
  * results area is revealed yet. */
 export type DeckStep = { slideIndex: number; revealed: boolean };
+
+/** The persistent section heading shown at the top of every non-title
+ * slide, derived once per deck by buildSectionHeadings. null before the
+ * first section-intro (i.e. on the title slide). */
+export type DeckSectionHeading = {
+  label: string | null;
+  title: string;
+  parentLabel: string | null;
+  parentTitle: string | null;
+};
 
 // kind/options/choiceCount/isKey/predictionOf/optional and the section's
 // label/parentTitle/discussionPrompt are declared optional (not just
@@ -208,6 +245,11 @@ export type PresentationSection = {
   prompt: string;
   scaleKey: string;
   discussionPrompt?: string | null;
+  /** Mirrors sections.show_overview. Presentation-only: when true,
+   * buildSlides appends a trailing rating-overview slide after the
+   * section's rating statements (when it has at least one). Optional so
+   * pre-existing fixtures keep typechecking. */
+  showOverview?: boolean;
   statements: PresentationStatement[];
 };
 

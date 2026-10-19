@@ -5,11 +5,17 @@ export type ResultRow = {
   label: string;
   count: number;
   percent: number;
+  /** Pre-formatted text shown instead of the percentage (for example a
+   * 0-10 average "7.2") — used by the rating overview (261019-2w3).
+   * `percent` still drives the bar width and `count` still picks the
+   * accented row. */
+  displayValue?: string;
 };
 
 /**
  * The one results layout for every presentation slide that shows answer
- * shares (scale statements, choice questions, familiarity overview).
+ * shares (scale statements, choice questions, familiarity overview, and
+ * the rating overview, which passes `displayValue` instead of a percent).
  *
  * Each answer is a block: label on the left and its percentage (large) on
  * the right of ONE line, with a thick bar underneath — so long labels never
@@ -84,7 +90,7 @@ export function ResultRows({
                       : `shrink-0 tabular-nums ${percentSize} leading-none font-normal text-pres-ink-secondary`
                   }
                 >
-                  {row.percent}%
+                  {row.displayValue !== undefined ? row.displayValue : `${row.percent}%`}
                 </span>
               </div>
               <span

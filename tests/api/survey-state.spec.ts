@@ -6,6 +6,11 @@ import {
   questionCountLabel,
   roughMinutesLabel,
   progressLabel,
+  buildSectionSummaries,
+  canonicalStatementKey,
+  resolveStatementNav,
+  resolveSectionScreen,
+  type SectionGroupableStatement,
 } from "@/lib/survey/state";
 import {
   NoOpenRoundScreen,
@@ -152,5 +157,98 @@ test.describe("survey state @survey-state", () => {
     expect(html).toContain(SURVEY_MESSAGES.thanksHeading);
     expect(html).toContain(SURVEY_MESSAGES.thanksBody);
     expect(SURVEY_MESSAGES.thanksHeading).toContain("—");
+  });
+});
+
+test.describe("grouped sections @survey-state", () => {
+  // Three sections: A (ungrouped, a1/a2), C (grouped, c1/c2/c3), D
+  // (ungrouped, d1).
+  const fixture: SectionGroupableStatement[] = [
+    { key: "a1", sectionId: "sA", sectionTitle: "A title", sectionPrompt: "A prompt", sectionLabel: "A" },
+    { key: "a2", sectionId: "sA", sectionTitle: "A title", sectionPrompt: "A prompt", sectionLabel: "A" },
+    { key: "c1", sectionId: "sC", sectionTitle: "C title", sectionPrompt: "C prompt", sectionLabel: "C", sectionGrouped: true },
+    { key: "c2", sectionId: "sC", sectionTitle: "C title", sectionPrompt: "C prompt", sectionLabel: "C", sectionGrouped: true },
+    { key: "c3", sectionId: "sC", sectionTitle: "C title", sectionPrompt: "C prompt", sectionLabel: "C", sectionGrouped: true },
+    { key: "d1", sectionId: "sD", sectionTitle: "D title", sectionPrompt: "D prompt", sectionLabel: "D" },
+  ];
+  const sections = buildSectionSummaries(fixture);
+
+  test("buildSectionSummaries marks C grouped, A and D not", () => {
+    expect(sections.map((s) => ({ label: s.label, grouped: s.grouped }))).toEqual([
+      { label: "A", grouped: false },
+      { label: "C", grouped: true },
+      { label: "D", grouped: false },
+    ]);
+  });
+
+  test("canonicalStatementKey: any key in a grouped section maps to the section's first key; ungrouped and unknown keys return themselves", () => {
+    expect(canonicalStatementKey(sections, "c3")).toBe("c1");
+    expect(canonicalStatementKey(sections, "c1")).toBe("c1");
+    expect(canonicalStatementKey(sections, "a2")).toBe("a2");
+    expect(canonicalStatementKey(sections, "nope")).toBe("nope");
+  });
+
+  test("resolveStatementNav: a grouped section's statement navigates as one stop at its section's break screens", () => {
+    const nav = resolveStatementNav(sections, "c2");
+    expect(nav?.prevHref).toBe("/survey/section/2");
+    expect(nav?.nextHref).toBe("/survey/section/3");
+    expect(nav?.position.positionInSection).toBe(3);
+    expect(nav?.position.countInSection).toBe(3);
+  });
+
+  test("resolveStatementNav: ungrouped behaviour is unchanged (a2 -> next section's break screen)", () => {
+    const nav = resolveStatementNav(sections, "a2");
+    expect(nav?.nextHref).toBe("/survey/section/2");
+  });
+
+  test("resolveSectionScreen: D's backHref lands on C's canonical (first) key, not its last; C's continueHref is its first key", () => {
+    const dScreen = resolveSectionScreen(sections, 3);
+    expect(dScreen?.backHref).toBe("/survey/c1");
+
+    const cScreen = resolveSectionScreen(sections, 2);
+    expect(cScreen?.continueHref).toBe("/survey/c1");
+  });
+
+  test("resolveSurveyScreen: resume lands on a grouped section's canonical key", () => {
+    const screen1 = resolveSurveyScreen({
+      openRound: { title: "Round" },
+      orderedStatementKeys: fixture.map((f) => f.key),
+      response: { submittedAt: null },
+      answeredKeys: new Set(["a1", "a2", "c1"]),
+      sections,
+    });
+    expect(screen1).toEqual({ kind: "resume", statementKey: "c1" });
+
+    const screen2 = resolveSurveyScreen({
+      openRound: { title: "Round" },
+      orderedStatementKeys: fixture.map((f) => f.key),
+      response: { submittedAt: null },
+      answeredKeys: new Set(["a1", "a2", "c1", "c2", "c3"]),
+      sections,
+    });
+    expect(screen2).toEqual({ kind: "resume", statementKey: "d1" });
+  });
+
+  test("resolveSurveyScreen: backwards-compatible without sections (resumes at the raw first-unanswered key)", () => {
+    const screen = resolveSurveyScreen({
+      openRound: { title: "Round" },
+      orderedStatementKeys: fixture.map((f) => f.key),
+      response: { submittedAt: null },
+      answeredKeys: new Set(["a1", "a2", "c1"]),
+    });
+    expect(screen).toEqual({ kind: "resume", statementKey: "c2" });
+  });
+
+  test("resolveStatementNav: a grouped section that is last in the round points nextHref at review", () => {
+    const lastFixture: SectionGroupableStatement[] = [
+      { key: "x1", sectionId: "sX", sectionTitle: "X title", sectionPrompt: "X prompt", sectionLabel: "X" },
+      { key: "y1", sectionId: "sY", sectionTitle: "Y title", sectionPrompt: "Y prompt", sectionLabel: "Y", sectionGrouped: true },
+      { key: "y2", sectionId: "sY", sectionTitle: "Y title", sectionPrompt: "Y prompt", sectionLabel: "Y", sectionGrouped: true },
+    ];
+    const lastSections = buildSectionSummaries(lastFixture);
+    for (const key of ["y1", "y2"]) {
+      const nav = resolveStatementNav(lastSections, key);
+      expect(nav?.nextHref).toBe("/survey/review");
+    }
   });
 });

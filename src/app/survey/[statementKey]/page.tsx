@@ -17,6 +17,7 @@ import { MultiChoiceForm } from "./multi-choice-form";
 import { PredictionForm } from "./prediction-form";
 import { RatingForm } from "./rating-form";
 import { TwoEndedForm } from "./two-ended-form";
+import { GroupedRatingForm, type GroupedRatingRow } from "./grouped-rating-form";
 
 // This route reads cookies() (via getSignedInUser()) on every request,
 // which alone makes it dynamic under next.config.ts's cacheComponents.
@@ -67,6 +68,78 @@ export default async function StatementPage({
   // of those statements into a section.
   if (!nav) {
     notFound();
+  }
+
+  const section = sections.find((s) => s.statementKeys.includes(statementKey));
+
+  if (section?.grouped) {
+    // A grouped section has ONE canonical route: its first key. Any other
+    // key in it redirects there, so every existing link (resume, the
+    // section-break screen's Back/Continue, old bookmarks) still lands
+    // correctly.
+    if (statementKey !== section.statementKeys[0]) {
+      redirect(`/survey/${section.statementKeys[0]}`);
+    }
+
+    const groupStatements = snapshot.statements.filter(
+      (s) => s.sectionId === section.sectionId
+    );
+    const groupParentLine = parentSectionHeading(
+      section.label,
+      section.parentTitle
+    );
+    const rows: GroupedRatingRow[] = groupStatements.map((s) => ({
+      statementId: s.id,
+      textId: `statement-${s.id}`,
+      text: s.text,
+      leftLabel: s.leftLabel ?? "",
+      rightLabel: s.rightLabel ?? "",
+      initialValue: snapshot.answers.get(s.id)?.value ?? null,
+      optional: s.optional,
+    }));
+    const lastGroupStatement = groupStatements[groupStatements.length - 1];
+
+    return (
+      <div className="flex flex-1 flex-col items-center bg-black px-4 py-8">
+        <div className="flex w-full max-w-md flex-col gap-6">
+          <div>
+            {groupParentLine ? (
+              <p className="text-sm text-zinc-400 break-words">{groupParentLine}</p>
+            ) : null}
+            <h1 className="text-lg font-semibold break-words text-white">
+              {sectionHeading(section.label, section.title)}
+            </h1>
+          </div>
+          <Card>
+            <CardContent className="flex flex-col gap-6">
+              <Progress
+                value={lastGroupStatement.position}
+                max={total}
+                min={0}
+                className="w-full flex-col items-stretch gap-1.5"
+              >
+                <ProgressLabel className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {SURVEY_MESSAGES.groupedProgress(
+                    nav.position.sectionNumber,
+                    nav.position.totalSections,
+                    groupStatements.length,
+                    nav.position.sectionLabel
+                  )}
+                </ProgressLabel>
+              </Progress>
+              <p className="text-base text-zinc-600 dark:text-zinc-400 break-words">
+                {section.prompt}
+              </p>
+              <GroupedRatingForm
+                rows={rows}
+                prevHref={nav.prevHref}
+                nextHref={nav.nextHref}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   const saved = snapshot.answers.get(statement.id);

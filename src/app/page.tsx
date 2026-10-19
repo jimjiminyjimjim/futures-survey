@@ -13,6 +13,7 @@ import {
   resolveSurveyScreen,
   partAndQuestionsLabel,
   partLabel,
+  buildSectionSummaries,
 } from "@/lib/survey/state";
 import { SURVEY_MESSAGES } from "@/lib/survey/messages";
 import {
@@ -77,6 +78,7 @@ export default async function HomePage() {
       ? { submittedAt: snapshot.response.submittedAt }
       : null,
     answeredKeys,
+    sections: buildSectionSummaries(snapshot.statements),
   });
 
   if (screen.kind === "resume") {

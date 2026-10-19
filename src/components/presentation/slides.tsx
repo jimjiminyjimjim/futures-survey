@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { PRESENTATION_MESSAGES } from "@/lib/presentation/messages";
 import {
   optionPercent,
+  formatMean,
 } from "@/lib/presentation/chart-math";
 import type { Slide } from "@/lib/presentation/types";
 import { SourceLine } from "@/components/survey/source-line";
@@ -71,19 +72,26 @@ export function SlideView({
       );
 
     case "section-intro":
+      // The persistent deck header (buildSectionHeadings) now renders the
+      // parent line + section heading, so the slide's own copies are
+      // sr-only here — kept for the slide's accessible heading semantics,
+      // without a visible duplicate. The prompt is this slide's visible
+      // content.
       return (
         <div className="flex h-full flex-col justify-center-safe">
-          {slide.parentTitle ? (
-            <p className="text-[17px] text-pres-ink-muted">
-              {slide.parentLabel ? `${slide.parentLabel}. ` : ""}
-              {slide.parentTitle}
-            </p>
-          ) : null}
-          <h2 className="mt-2 text-[41px] leading-[1.15] font-semibold">
-            {slide.label ? `${slide.label}. ` : ""}
-            {slide.sectionTitle}
-          </h2>
-          <p className="mt-4 max-w-4xl text-[24px] leading-[1.5] text-pres-ink-secondary">
+          <div className="sr-only">
+            {slide.parentTitle ? (
+              <p>
+                {slide.parentLabel ? `${slide.parentLabel}. ` : ""}
+                {slide.parentTitle}
+              </p>
+            ) : null}
+            <h2>
+              {slide.label ? `${slide.label}. ` : ""}
+              {slide.sectionTitle}
+            </h2>
+          </div>
+          <p className="max-w-5xl text-[32px] leading-[1.35] text-pres-ink">
             {slide.sectionPrompt}
           </p>
         </div>
@@ -338,6 +346,51 @@ export function SlideView({
             ) : null}
             <div className="min-h-0 flex-1 overflow-y-auto">
               <ResultRows rows={rows} ariaLabel={PRESENTATION_MESSAGES.rankingLabel} />
+            </div>
+          </RevealedArea>
+        </div>
+      );
+    }
+
+    case "rating-overview": {
+      const isEmpty = slide.respondentCount === 0;
+      const rows: ResultRow[] = slide.items.map((item) => {
+        const scaled = Math.round((item.average ?? 0) * 10);
+        return {
+          key: item.statementKey,
+          label: item.text,
+          count: scaled,
+          percent: scaled,
+          displayValue: item.average !== null ? formatMean(item.average) : "—",
+        };
+      });
+      return (
+        <div className="flex h-full min-h-0 flex-col gap-4">
+          <div>
+            <h2 className="text-[41px] leading-[1.15] font-semibold">
+              {PRESENTATION_MESSAGES.ratingOverviewTitle(slide.sectionTitle)}
+            </h2>
+            <p className="mt-1 text-[17px] text-pres-ink-muted">
+              {PRESENTATION_MESSAGES.ratingOverviewSubtitle(
+                slide.sectionLabel ?? null,
+                slide.sectionSortOrder
+              )}
+            </p>
+          </div>
+          <RevealedArea
+            revealed={revealed}
+            className="flex min-h-0 flex-1 flex-col gap-4"
+          >
+            {isEmpty ? (
+              <p className="text-[41px] leading-[1.15] font-semibold">
+                {PRESENTATION_MESSAGES.emptyHeading}
+              </p>
+            ) : null}
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <ResultRows
+                rows={rows}
+                ariaLabel={PRESENTATION_MESSAGES.ratingRankingLabel}
+              />
             </div>
           </RevealedArea>
         </div>

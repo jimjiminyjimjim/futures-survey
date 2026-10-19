@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SURVEY_MESSAGES } from "@/lib/survey/messages";
 import {
   KeyboardHint,
@@ -11,8 +10,7 @@ import {
   type QuestionNavProps,
 } from "./question-controls";
 import { useQuestionKeyboard } from "./use-question-keyboard";
-
-const RATING_VALUES = Array.from({ length: 11 }, (_, i) => i); // 0..10
+import { RatingScale } from "./rating-scale";
 
 /**
  * The `rating` question kind: an 11-point 0–10 selector with end labels.
@@ -89,32 +87,14 @@ export function RatingForm({
 
   return (
     <div className="flex flex-col gap-4">
-      <RadioGroup
+      <RatingScale
         value={value}
-        onValueChange={(next) => selectOption(String(next))}
-        aria-labelledby={labelledById}
+        onValueChange={(next) => selectOption(next)}
+        labelledById={labelledById}
         disabled={isPending}
-        className="grid grid-cols-6 gap-1.5 pointer-fine:grid-cols-11"
-      >
-        {RATING_VALUES.map((n) => (
-          <label
-            key={n}
-            className="relative flex min-h-11 items-center justify-center rounded-lg border text-base has-data-checked:border-primary has-data-checked:bg-primary has-data-checked:text-primary-foreground has-focus-visible:ring-2 has-focus-visible:ring-ring/50"
-          >
-            {/* Stretched over the button and transparent: still the focusable,
-                clickable radio, but takes no space so the number stays centred. */}
-            <RadioGroupItem
-              value={String(n)}
-              className="absolute inset-0 size-full rounded-lg border-0 opacity-0"
-            />
-            <span aria-hidden="true">{n}</span>
-          </label>
-        ))}
-      </RadioGroup>
-      <div className="flex justify-between text-sm text-zinc-600 dark:text-zinc-400">
-        <span>{SURVEY_MESSAGES.ratingEnd(0, leftLabel)}</span>
-        <span>{SURVEY_MESSAGES.ratingEnd(10, rightLabel)}</span>
-      </div>
+        leftLabel={leftLabel}
+        rightLabel={rightLabel}
+      />
       <QuestionError error={error} />
       <QuestionButtons
         isPending={isPending}

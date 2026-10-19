@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
+import { SessionIntroDialog } from "@/components/survey/session-intro-dialog";
 
 /**
  * Top-right bar for participants (user request 2026-10-15: "a logout button
@@ -16,10 +17,20 @@ export function ParticipantHeader({
   email,
   isAdmin = false,
   variant = "bar",
+  sessionIntro = null,
 }: {
   email: string | null | undefined;
   isAdmin?: boolean;
   variant?: "bar" | "floating";
+  /** When set, renders the "About this session" dialog trigger as the
+   * first header control. null on routes with no open round (or an
+   * error snapshot) to show it for. */
+  sessionIntro?: {
+    surveyTitle: string | null;
+    roundTitle: string;
+    partLabel: string | null;
+    intro: string | null;
+  } | null;
 }) {
   return (
     <header
@@ -29,6 +40,7 @@ export function ParticipantHeader({
           : "flex w-full items-center justify-end gap-4 border-b bg-background px-4 py-3 text-sm"
       }
     >
+      {sessionIntro ? <SessionIntroDialog {...sessionIntro} /> : null}
       {isAdmin ? (
         <Link
           href="/admin"

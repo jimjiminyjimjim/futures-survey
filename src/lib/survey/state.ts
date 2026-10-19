@@ -65,6 +65,10 @@ export type SectionGroupableStatement = {
   sectionLabel?: string | null;
   /** e.g. "What is design?" for 2a/2b. */
   sectionParentTitle?: string | null;
+  /** true when every statement in this section is answered on one page
+   * (sections.grouped AND every statement is kind "rating" — see
+   * queries.ts). Absent/false for every other section. */
+  sectionGrouped?: boolean;
 };
 
 export type SectionSummary = {
@@ -78,6 +82,10 @@ export type SectionSummary = {
   prompt: string;
   /** Statement keys in round order, within this section only. */
   statementKeys: string[];
+  /** true when this section is answered on one page, at its first key's
+   * route. See resolveStatementNav/resolveSectionScreen/
+   * resolveSurveyScreen for how that one route is reached. */
+  grouped: boolean;
 };
 
 /** "2a. What is a designer?" — or just the title when unlabelled. */
@@ -123,10 +131,28 @@ export function buildSectionSummaries(
         title: statement.sectionTitle,
         prompt: statement.sectionPrompt,
         statementKeys: [statement.key],
+        grouped: statement.sectionGrouped === true,
       });
     }
   }
   return sections;
+}
+
+/**
+ * A grouped section has ONE route: its first statement key. Any other
+ * key in that section canonicalises to it, so every existing link
+ * (resume, section-break Back/Continue, bookmarks) still lands on the
+ * grouped page. An ungrouped or unknown key returns itself unchanged.
+ */
+export function canonicalStatementKey(
+  sections: ReadonlyArray<Pick<SectionSummary, "grouped" | "statementKeys">>,
+  statementKey: string
+): string {
+  const section = sections.find((s) => s.statementKeys.includes(statementKey));
+  if (section && section.grouped) {
+    return section.statementKeys[0];
+  }
+  return statementKey;
 }
 
 export type StatementSectionPosition = {
@@ -176,9 +202,30 @@ export function resolveStatementNav(
 
   const section = sections[sectionIndex];
   const indexInSection = section.statementKeys.indexOf(statementKey);
+  const isLastSection = sectionIndex === sections.length - 1;
+
+  if (section.grouped) {
+    // A grouped section is one stop: every key in it shares the same
+    // nav (its own section's break screen, and the next section's break
+    // screen or review), and "position" reports the whole section as
+    // complete in one step.
+    return {
+      prevHref: `/survey/section/${section.sectionNumber}`,
+      nextHref: isLastSection
+        ? "/survey/review"
+        : `/survey/section/${section.sectionNumber + 1}`,
+      position: {
+        sectionNumber: section.sectionNumber,
+        totalSections: sections.length,
+        sectionLabel: section.label,
+        positionInSection: section.statementKeys.length,
+        countInSection: section.statementKeys.length,
+      },
+    };
+  }
+
   const isFirstInSection = indexInSection === 0;
   const isLastInSection = indexInSection === section.statementKeys.length - 1;
-  const isLastSection = sectionIndex === sections.length - 1;
 
   const prevHref = isFirstInSection
     ? `/survey/section/${section.sectionNumber}`
@@ -247,7 +294,7 @@ export function resolveSectionScreen(
     questionCount: section.statementKeys.length,
     continueHref: `/survey/${section.statementKeys[0]}`,
     backHref: previousSection
-      ? `/survey/${previousSection.statementKeys[previousSection.statementKeys.length - 1]}`
+      ? `/survey/${canonicalStatementKey(sections, previousSection.statementKeys[previousSection.statementKeys.length - 1])}`
       : "/",
   };
 }
@@ -275,6 +322,14 @@ export type ResolveSurveyScreenInput = {
   requiredStatementKeys?: string[];
   response: { submittedAt: string | null } | null;
   answeredKeys: ReadonlySet<string>;
+  /**
+   * Optional. When provided, the resume target is canonicalised through
+   * canonicalStatementKey, so a grouped section's resume always lands on
+   * its first key. Omitted (or empty), resume returns the raw
+   * first-unanswered key — the pre-grouped-sections behaviour, kept for
+   * backwards compatibility.
+   */
+  sections?: ReadonlyArray<Pick<SectionSummary, "grouped" | "statementKeys">>;
 };
 
 /**
@@ -285,6 +340,8 @@ export type ResolveSurveyScreenInput = {
  *   3. response?.submittedAt non-null -> thanks
  *   4. none of the round's keys answered -> start
  *   5. otherwise the first REQUIRED key in order that is not answered -> resume
+ *      (mapped through canonicalStatementKey when `sections` is given, so a
+ *      key in a grouped section resumes at the section's first key)
  *   6. all required answered -> review
  *
  * `response` must always be the participant's response for the OPEN round
@@ -322,7 +379,10 @@ export function resolveSurveyScreen(
 
   const firstUnanswered = requiredKeys.find((key) => !answeredKeys.has(key));
   if (firstUnanswered) {
-    return { kind: "resume", statementKey: firstUnanswered };
+    return {
+      kind: "resume",
+      statementKey: canonicalStatementKey(input.sections ?? [], firstUnanswered),
+    };
   }
 
   return { kind: "review" };
