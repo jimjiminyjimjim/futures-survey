@@ -102,7 +102,7 @@ export const SURVEY_MESSAGES = {
     "We couldn't save your choice. Check your connection and try again.",
   /** ranking helper text, shown above the list. */
   rankingHint:
-    "Tap the items in order of importance, most important first. Drag the handle to reorder, or drag an item below the line to un-rank it.",
+    "Tap to rank, most important first, then drag to re-rank.",
   /** ranking progress, e.g. "2 of 6 ranked". */
   rankingProgress: (ranked: number, total: number) =>
     `${ranked} of ${total} ranked`,
