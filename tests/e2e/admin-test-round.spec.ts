@@ -339,7 +339,7 @@ test.describe.serial("admin test mode for an unopened round @admin-test-round", 
         })
         .click();
       await expect(
-        page.getByRole("listitem", {
+        page.getByRole("button", {
           name: SURVEY_MESSAGES.rankingItemRanked(option.label, i + 1, firstOptions.length),
           exact: true,
         })
@@ -347,7 +347,10 @@ test.describe.serial("admin test mode for an unopened round @admin-test-round", 
     }
     await expect(
       page
-        .getByText(SURVEY_MESSAGES.rankingAllRanked, { exact: true })
+        .getByText(
+          SURVEY_MESSAGES.rankingProgress(firstOptions.length, firstOptions.length),
+          { exact: true }
+        )
         .filter({ visible: true })
     ).toBeVisible();
     const continueAfterRanking = page.getByRole("button", {

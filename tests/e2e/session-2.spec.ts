@@ -200,10 +200,10 @@ async function dragByHandle(
 
 /**
  * Ranks every option of the ranking question on screen in `desired` order
- * (numbered slots on top, a pool of unranked items below), asserting
- * Continue stays disabled until every slot is filled. With `exercise`, it
- * also removes an item (later ranks close up), fixes the order with Move up
- * / Move down, and tries keyboard and pointer drag-and-drop.
+ * (one list: numbered items on top, unranked items below), asserting
+ * Continue stays disabled until every item is ranked. With `exercise`, it
+ * also taps a ranked item back out (later ranks close up) and tries
+ * keyboard and pointer drag-and-drop.
  */
 async function rankAll(
   page: Page,
@@ -220,46 +220,21 @@ async function rankAll(
     }
     return option.label;
   };
-  // A pool item's tap button.
+  // An unranked row's tap button.
   const unranked = (value: number) =>
     page.getByRole("button", {
       name: SURVEY_MESSAGES.rankingItemUnranked(labelOf(value)),
       exact: true,
     });
-  // A filled slot.
+  // A numbered row's tap button (tapping it un-numbers the item).
   const ranked = (value: number, rank: number) =>
-    page.getByRole("listitem", {
+    page.getByRole("button", {
       name: SURVEY_MESSAGES.rankingItemRanked(labelOf(value), rank, total),
-      exact: true,
-    });
-  const emptySlot = (slot: number) =>
-    page.getByRole("listitem", {
-      name: SURVEY_MESSAGES.rankingSlotEmpty(slot),
-      exact: true,
-    });
-  const moveUp = (value: number) =>
-    page.getByRole("button", {
-      name: SURVEY_MESSAGES.rankingMoveUp(labelOf(value)),
-      exact: true,
-    });
-  const moveDown = (value: number) =>
-    page.getByRole("button", {
-      name: SURVEY_MESSAGES.rankingMoveDown(labelOf(value)),
-      exact: true,
-    });
-  const remove = (value: number) =>
-    page.getByRole("button", {
-      name: SURVEY_MESSAGES.rankingRemove(labelOf(value)),
       exact: true,
     });
   const handle = (value: number) =>
     page.getByRole("button", {
       name: SURVEY_MESSAGES.rankingDragHandle(labelOf(value)),
-      exact: true,
-    });
-  const poolList = (count: number) =>
-    page.getByRole("list", {
-      name: SURVEY_MESSAGES.rankingPoolHeading(count),
       exact: true,
     });
   const progress = (n: number) =>
@@ -275,34 +250,21 @@ async function rankAll(
   // are lost. A person can't press that fast; the test waits it out.
   const keyboardDragReady = () => page.waitForTimeout(250);
 
-  // A first visit: every slot empty, every option in the pool, Continue
+  // A first visit: nothing ranked, every option listed once, Continue
   // disabled.
   await expect(progress(0)).toBeVisible();
-  await expect(
-    visibleText(page, SURVEY_MESSAGES.rankingMostImportant, { exact: true })
-  ).toBeVisible();
-  await expect(
-    visibleText(page, SURVEY_MESSAGES.rankingLeastImportant, { exact: true })
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", {
-      name: SURVEY_MESSAGES.rankingPoolHeading(total),
-      exact: true,
-    })
-  ).toBeVisible();
-  for (let slot = 1; slot <= total; slot += 1) {
-    await expect(emptySlot(slot)).toBeVisible();
-  }
   for (const option of options) {
     await expect(unranked(option.value)).toBeVisible();
   }
+  // No up/down/remove buttons any more.
+  await expect(page.getByRole("button", { name: /^(Move|Remove) / })).toHaveCount(0);
   await expect(continueButton).toBeDisabled();
 
   let start = 0;
   if (exercise) {
     expect(desired.length).toBeGreaterThanOrEqual(4);
     const [d0, d1, d2, d3] = desired;
-    // Every slot and the pool on screen, so pointer drags need no scrolling.
+    // Every row on screen, so pointer drags need no scrolling.
     await page.setViewportSize({ width: 1280, height: 1800 });
 
     await unranked(d0).click();
@@ -313,35 +275,17 @@ async function rankAll(
     await expect(ranked(d2, 3)).toBeVisible();
     await expect(progress(3)).toBeVisible();
 
-    // Remove #1: it goes back to the pool and the later ranks close up.
-    await remove(d0).click();
+    // Tap a numbered item: it loses its number and later ranks close up.
+    await ranked(d0, 1).click();
     await expect(unranked(d0)).toBeVisible();
     await expect(ranked(d1, 1)).toBeVisible();
     await expect(ranked(d2, 2)).toBeVisible();
     await expect(progress(2)).toBeVisible();
     await expect(continueButton).toBeDisabled();
 
-    // Re-rank it (it takes the next slot, #3), then Move up twice to put it
-    // back first.
+    // Re-rank it: it takes the next place, #3.
     await unranked(d0).click();
     await expect(ranked(d0, 3)).toBeVisible();
-    await moveUp(d0).click();
-    await expect(ranked(d0, 2)).toBeVisible();
-    await expect(ranked(d2, 3)).toBeVisible();
-    await moveUp(d0).click();
-    await expect(ranked(d0, 1)).toBeVisible();
-    await expect(ranked(d1, 2)).toBeVisible();
-    await expect(moveUp(d0)).toHaveAttribute("aria-disabled", "true");
-
-    // Move down swaps with the next rank; Move up undoes it.
-    await moveDown(d1).click();
-    await expect(ranked(d1, 3)).toBeVisible();
-    await expect(ranked(d2, 2)).toBeVisible();
-    await expect(moveDown(d1)).toHaveAttribute("aria-disabled", "true");
-    await moveUp(d1).click();
-    await expect(ranked(d1, 2)).toBeVisible();
-    await expect(ranked(d2, 3)).toBeVisible();
-    await expect(continueButton).toBeDisabled();
 
     // Keyboard drag, cancelled: the arrows and Escape belong to the drag, so
     // the page does not navigate and nothing moves.
@@ -355,32 +299,36 @@ async function rankAll(
     await page.keyboard.press("Escape");
     await expect(dragging("false")).toBeVisible();
     expect(page.url()).toBe(urlBefore);
-    await expect(ranked(d0, 1)).toBeVisible();
-    await expect(ranked(d1, 2)).toBeVisible();
-    await expect(ranked(d2, 3)).toBeVisible();
+    await expect(ranked(d1, 1)).toBeVisible();
+    await expect(ranked(d2, 2)).toBeVisible();
+    await expect(ranked(d0, 3)).toBeVisible();
 
-    // Keyboard drag, dropped one slot down: the slot-1 item swaps with #2.
+    // Keyboard drag, dropped one place up: #3 swaps with #2.
     await handle(d0).focus();
     await page.keyboard.press("Space");
     await expect(dragging("true")).toBeVisible();
     await keyboardDragReady();
-    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowUp");
     await expect(
       page.getByRole("status").filter({
-        hasText: SURVEY_MESSAGES.rankingDragOverSlot(labelOf(d0), 2),
+        hasText: SURVEY_MESSAGES.rankingDragOverRank(labelOf(d0), 2),
       })
     ).toHaveCount(1);
     await page.keyboard.press("Space");
     await expect(dragging("false")).toBeVisible();
     await expect(ranked(d1, 1)).toBeVisible();
     await expect(ranked(d0, 2)).toBeVisible();
-    await moveUp(d0).click();
-    await expect(ranked(d0, 1)).toBeVisible();
-    await expect(ranked(d1, 2)).toBeVisible();
+    await expect(ranked(d2, 3)).toBeVisible();
     expect(page.url()).toBe(urlBefore);
 
-    // Pointer drag (a): a pool item onto a filled slot inserts it there and
-    // the later items shift down.
+    // Pointer drag between ranked rows: #2 onto #1 puts it first.
+    await dragByHandle(page, handle(d0), ranked(d1, 1));
+    await expect(ranked(d0, 1)).toBeVisible();
+    await expect(ranked(d1, 2)).toBeVisible();
+    await expect(ranked(d2, 3)).toBeVisible();
+
+    // Pointer drag (a): an unranked item onto #1 takes that place and the
+    // others shift down.
     await dragByHandle(page, handle(d3), ranked(d0, 1));
     await expect(ranked(d3, 1)).toBeVisible();
     await expect(ranked(d0, 2)).toBeVisible();
@@ -388,15 +336,19 @@ async function rankAll(
     await expect(ranked(d2, 4)).toBeVisible();
     await expect(progress(4)).toBeVisible();
 
-    // (b) between filled slots: reorder.
+    // (b) between numbered items: reorder.
     await dragByHandle(page, handle(d3), ranked(d2, 4));
     await expect(ranked(d0, 1)).toBeVisible();
     await expect(ranked(d1, 2)).toBeVisible();
     await expect(ranked(d2, 3)).toBeVisible();
     await expect(ranked(d3, 4)).toBeVisible();
 
-    // (c) a slot item onto the pool unranks it.
-    await dragByHandle(page, handle(d3), poolList(total - 4));
+    // (c) a numbered item dragged onto an unranked one loses its number.
+    const spare = options.find((o) => ![d0, d1, d2, d3].includes(o.value));
+    if (!spare) {
+      throw new Error("rankAll: needs at least 5 options to exercise drags");
+    }
+    await dragByHandle(page, handle(d3), unranked(spare.value));
     await expect(unranked(d3)).toBeVisible();
     await expect(progress(3)).toBeVisible();
     await expect(ranked(d2, 3)).toBeVisible();
@@ -417,9 +369,6 @@ async function rankAll(
   for (let i = 0; i < desired.length; i += 1) {
     await expect(ranked(desired[i], i + 1)).toBeVisible();
   }
-  await expect(
-    visibleText(page, SURVEY_MESSAGES.rankingAllRanked, { exact: true })
-  ).toBeVisible();
   await expect(continueButton).toBeEnabled();
   await continueButton.click();
 }

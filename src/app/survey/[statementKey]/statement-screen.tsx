@@ -17,6 +17,7 @@ import { StatementForm } from "./statement-form";
 import { MultiChoiceForm } from "./multi-choice-form";
 import { PredictionForm } from "./prediction-form";
 import { RankingForm } from "./ranking-form";
+import { cn } from "@/lib/utils";
 import { RatingForm } from "./rating-form";
 import { TwoEndedForm } from "./two-ended-form";
 import { GroupedRatingForm, type GroupedRatingRow } from "./grouped-rating-form";
@@ -244,7 +245,13 @@ export function StatementScreen({
 
   return (
     <div className="flex flex-1 flex-col items-center bg-black px-4 py-8">
-      <div className="flex w-full max-w-md flex-col gap-6">
+      {/* Ranking rows hold long statements, so they get a wider column. */}
+      <div
+        className={cn(
+          "flex w-full flex-col gap-6",
+          statement.kind === "ranking" ? "max-w-2xl" : "max-w-md"
+        )}
+      >
         <div>
           {parentLine ? (
             <p className="text-sm text-zinc-400 break-words">{parentLine}</p>

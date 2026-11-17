@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, GripVertical, X } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -9,14 +9,9 @@ import {
   PointerSensor,
   TouchSensor,
   closestCenter,
-  pointerWithin,
-  useDraggable,
-  useDroppable,
   useSensor,
   useSensors,
   type Announcements,
-  type CollisionDetection,
-  type DraggableAttributes,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -31,7 +26,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { SURVEY_MESSAGES } from "@/lib/survey/messages";
 import {
-  moveRank,
   normaliseAnswer,
   placeRank,
   rankNext,
@@ -50,33 +44,28 @@ import { useQuestionKeyboard } from "./use-question-keyboard";
 
 /**
  * Ranking questions: the participant ranks EVERY item, most important
- * first.
- *  - N numbered slots (1..N) sit on top, "Most important" above slot 1 and
- *    "Least important" below slot N. Empty slots are dashed. Under them is
- *    a pool, "Still to rank (n)", of the unranked items in the fixed order
- *    they were written in. Nothing is ranked on a first visit.
- *  - The ranking is one gap-free array: ranked items always fill slots
- *    1..k, so the empty slots are always k+1..N.
- *  - Tap a pool item and it takes the next empty slot. Every item (pool or
- *    slot) also has a visible grip handle: drag it onto a filled slot to
- *    insert it there (later items shift down), onto an empty slot to put it
- *    in the next free number, between filled slots to reorder, or from a
- *    slot onto the pool to unrank it. A drag starts from the handle only
- *    (touch-action none on the handle alone), so the page still scrolls
- *    everywhere else. @dnd-kit supplies pointer, touch and keyboard
- *    sensors plus the screen-reader announcements.
- *  - Filled slots also have Move up / Move down (swap with the neighbour)
- *    and Remove (back to the pool; later ranks close up).
- *  - Continue stays disabled until every slot is filled, and saves the
+ * first, in ONE list (it takes the least space on a phone).
+ *  - Ranked items sit at the top in rank order, each with its number; the
+ *    unranked items follow in the fixed order they were written in, each
+ *    with an empty circle. Nothing is ranked on a first visit (no default
+ *    order, so nobody can just accept a pre-made ranking).
+ *  - Tap an unranked item and it takes the next number (moving up to join
+ *    the numbered items). Tap a numbered item and it loses its number; the
+ *    later numbers close up.
+ *  - Every row has a grip handle on the right: drag it onto a numbered item
+ *    to take that place (the others shift), or drag a numbered item down
+ *    among the unranked ones to un-number it. A drag starts from the grip
+ *    only (touch-action none on the grip alone), so the page still scrolls
+ *    everywhere else. @dnd-kit supplies pointer, touch and keyboard sensors
+ *    plus the screen-reader announcements.
+ *  - Continue stays disabled until every item is ranked, and saves the
  *    whole ranking in rank order.
  * There is no digit-key shortcut here (there are too many ways to read
  * "press 3"); Enter and the arrow keys behave as on the other forms, except
  * while a drag is active, when they belong to the drag.
  */
 
-const POOL_ID = "pool";
 const itemId = (value: number) => `item-${value}`;
-const slotId = (index: number) => `slot-${index}`;
 
 function valueFromId(id: UniqueIdentifier | null | undefined): number | null {
   if (id == null) {
@@ -91,147 +80,45 @@ function valueFromId(id: UniqueIdentifier | null | undefined): number | null {
 }
 
 /**
- * Where a drop of `value` onto `overId` leaves the ranking, or null for "no
- * change". Over a filled item: insert / reorder at that item's index. Over
- * any empty slot: the item goes to the next free number (placeRank clamps),
- * because the ranking never has gaps. Over the pool: unrank. Pure.
+ * Where a drop of `value` onto the row `overId` leaves the ranking, or null
+ * for "no change". Over a numbered item: take that item's place. Over an
+ * unranked item: a numbered item is un-numbered; an unranked one stays put.
+ * Pure.
  */
 function resolveDrop(
   ranked: number[],
   value: number,
   overId: UniqueIdentifier | null | undefined
 ): number[] | null {
-  if (overId == null) {
-    return null;
-  }
-  const over = String(overId);
-  if (over === POOL_ID) {
-    return ranked.includes(value) ? unrank(ranked, value) : null;
-  }
-  if (over.startsWith("slot-")) {
-    return placeRank(ranked, value, ranked.length);
-  }
   const overValue = valueFromId(overId);
   if (overValue == null || overValue === value) {
     return null;
   }
   const index = ranked.indexOf(overValue);
-  if (index === -1) {
-    return null;
+  if (index !== -1) {
+    return placeRank(ranked, value, index);
   }
-  return placeRank(ranked, value, index);
+  return ranked.includes(value) ? unrank(ranked, value) : null;
 }
-
-// pointerWithin when there is a pointer; the keyboard has none, so fall back
-// to the nearest centre.
-const collisionDetection: CollisionDetection = (args) => {
-  const within = pointerWithin(args);
-  return within.length > 0 ? within : closestCenter(args);
-};
 
 type RegisterFocus = (key: string, element: HTMLElement | null) => void;
 
-type DragHandleProps = {
-  label: string;
-  activatorRef: (element: HTMLElement | null) => void;
-  listeners: ReturnType<typeof useDraggable>["listeners"];
-  attributes: DraggableAttributes;
-  disabled: boolean;
-};
-
-function DragHandle({
-  label,
-  activatorRef,
-  listeners,
-  attributes,
-  disabled,
-}: DragHandleProps) {
-  return (
-    <button
-      type="button"
-      ref={activatorRef}
-      {...attributes}
-      {...listeners}
-      aria-label={SURVEY_MESSAGES.rankingDragHandle(label)}
-      className={cn(
-        "flex size-11 shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-lg text-zinc-500 outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing dark:text-zinc-400",
-        disabled && "cursor-default opacity-60"
-      )}
-    >
-      <GripVertical aria-hidden="true" className="size-5" />
-    </button>
-  );
-}
-
-function PoolItem({
+function RankingRow({
   option,
+  rank,
+  total,
   isPending,
+  highlighted,
   onTap,
   register,
 }: {
   option: ChoiceOption;
-  isPending: boolean;
-  onTap: (value: number) => void;
-  register: RegisterFocus;
-}) {
-  const {
-    setNodeRef,
-    setActivatorNodeRef,
-    listeners,
-    attributes,
-    isDragging,
-  } = useDraggable({ id: itemId(option.value), disabled: isPending });
-
-  return (
-    <li
-      ref={setNodeRef}
-      className={cn(
-        "flex items-stretch rounded-lg border",
-        isDragging && "opacity-40"
-      )}
-    >
-      <DragHandle
-        label={option.label}
-        activatorRef={setActivatorNodeRef}
-        listeners={listeners}
-        attributes={attributes}
-        disabled={isPending}
-      />
-      <button
-        type="button"
-        ref={(element) => register(`pool-${option.value}`, element)}
-        aria-label={SURVEY_MESSAGES.rankingItemUnranked(option.label)}
-        disabled={isPending}
-        onClick={() => onTap(option.value)}
-        className="flex min-h-11 min-w-0 flex-1 items-center rounded-r-lg py-2 pr-3 text-left text-base break-words outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-      >
-        <span className="min-w-0 break-words">{option.label}</span>
-      </button>
-    </li>
-  );
-}
-
-function FilledSlot({
-  option,
-  rank,
-  total,
-  rankedCount,
-  isPending,
-  highlighted,
-  onMove,
-  onRemove,
-  register,
-}: {
-  option: ChoiceOption;
+  /** 1-based rank, or 0 when not ranked yet. */
   rank: number;
   total: number;
-  // How many slots are filled: Move down stops at the last filled slot
-  // (there is nothing below it to swap with).
-  rankedCount: number;
   isPending: boolean;
   highlighted: boolean;
-  onMove: (value: number, direction: -1 | 1) => void;
-  onRemove: (value: number) => void;
+  onTap: (value: number) => void;
   register: RegisterFocus;
 }) {
   const {
@@ -243,173 +130,59 @@ function FilledSlot({
     transition,
     isDragging,
   } = useSortable({ id: itemId(option.value), disabled: isPending });
-  const atTop = rank === 1;
-  const atBottom = rank === rankedCount;
+  const isRanked = rank > 0;
 
   return (
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      aria-label={SURVEY_MESSAGES.rankingItemRanked(option.label, rank, total)}
       className={cn(
-        "flex flex-col gap-1 min-[480px]:flex-row min-[480px]:items-stretch min-[480px]:gap-2",
+        "flex items-stretch rounded-lg border bg-background",
+        isRanked && "border-primary ring-1 ring-primary",
+        highlighted && "bg-primary/10 ring-2 ring-primary",
         isDragging && "opacity-40"
       )}
     >
-      <div
-        className={cn(
-          "flex min-h-11 w-full min-w-0 flex-1 items-center gap-1 rounded-lg border border-primary ring-1 ring-primary",
-          highlighted && "bg-primary/10 ring-2"
-        )}
+      <button
+        type="button"
+        ref={(element) => register(itemId(option.value), element)}
+        aria-pressed={isRanked}
+        aria-label={
+          isRanked
+            ? SURVEY_MESSAGES.rankingItemRanked(option.label, rank, total)
+            : SURVEY_MESSAGES.rankingItemUnranked(option.label)
+        }
+        disabled={isPending}
+        onClick={() => onTap(option.value)}
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-l-lg py-2 pl-3 text-left text-base outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
       >
-        <DragHandle
-          label={option.label}
-          activatorRef={setActivatorNodeRef}
-          listeners={listeners}
-          attributes={attributes}
-          disabled={isPending}
-        />
         <span
           aria-hidden="true"
-          className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-sm font-semibold text-primary-foreground"
-        >
-          {rank}
-        </span>
-        <span className="min-w-0 flex-1 break-words py-2 pr-3 pl-2 text-base">
-          {option.label}
-        </span>
-      </div>
-      <div className="flex shrink-0 justify-end gap-1 min-[480px]:gap-2">
-        <button
-          type="button"
-          ref={(element) => register(`up-${option.value}`, element)}
-          aria-label={SURVEY_MESSAGES.rankingMoveUp(option.label)}
-          aria-disabled={isPending || atTop}
-          onClick={() => {
-            if (!isPending && !atTop) {
-              onMove(option.value, -1);
-            }
-          }}
           className={cn(
-            "flex size-11 items-center justify-center rounded-lg border outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            (isPending || atTop) && "opacity-40"
+            "flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
+            isRanked
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-dashed border-zinc-400"
           )}
         >
-          <ChevronUp aria-hidden="true" className="size-5" />
-        </button>
-        <button
-          type="button"
-          ref={(element) => register(`down-${option.value}`, element)}
-          aria-label={SURVEY_MESSAGES.rankingMoveDown(option.label)}
-          aria-disabled={isPending || atBottom}
-          onClick={() => {
-            if (!isPending && !atBottom) {
-              onMove(option.value, 1);
-            }
-          }}
-          className={cn(
-            "flex size-11 items-center justify-center rounded-lg border outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            (isPending || atBottom) && "opacity-40"
-          )}
-        >
-          <ChevronDown aria-hidden="true" className="size-5" />
-        </button>
-        <button
-          type="button"
-          aria-label={SURVEY_MESSAGES.rankingRemove(option.label)}
-          disabled={isPending}
-          onClick={() => onRemove(option.value)}
-          className="flex size-11 items-center justify-center rounded-lg border outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
-        >
-          <X aria-hidden="true" className="size-5" />
-        </button>
-      </div>
-    </li>
-  );
-}
-
-function EmptySlot({
-  index,
-  highlighted,
-  isPending,
-}: {
-  index: number;
-  highlighted: boolean;
-  isPending: boolean;
-}) {
-  const { setNodeRef } = useDroppable({
-    id: slotId(index),
-    disabled: isPending,
-  });
-  return (
-    <li
-      ref={setNodeRef}
-      aria-label={SURVEY_MESSAGES.rankingSlotEmpty(index + 1)}
-      className={cn(
-        "flex min-h-11 items-center gap-3 rounded-lg border border-dashed px-3 py-2 text-zinc-500 dark:text-zinc-400",
-        highlighted && "border-primary bg-primary/10"
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed text-sm font-semibold"
+          {isRanked ? rank : null}
+        </span>
+        <span className="min-w-0 break-words">{option.label}</span>
+      </button>
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        aria-label={SURVEY_MESSAGES.rankingDragHandle(option.label)}
+        className={cn(
+          "flex w-10 shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-r-lg text-zinc-400 outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing",
+          isPending && "cursor-default opacity-60"
+        )}
       >
-        {index + 1}
-      </span>
+        <GripVertical aria-hidden="true" className="size-5" />
+      </button>
     </li>
-  );
-}
-
-function Pool({
-  options,
-  highlighted,
-  isPending,
-  onTap,
-  register,
-  headingId,
-}: {
-  options: ChoiceOption[];
-  highlighted: boolean;
-  isPending: boolean;
-  onTap: (value: number) => void;
-  register: RegisterFocus;
-  headingId: string;
-}) {
-  const { setNodeRef } = useDroppable({ id: POOL_ID, disabled: isPending });
-  return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        "flex flex-col gap-2 rounded-lg p-1",
-        highlighted && "bg-primary/10 ring-2 ring-primary"
-      )}
-    >
-      {options.length === 0 ? (
-        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-          {SURVEY_MESSAGES.rankingAllRanked}
-        </p>
-      ) : (
-        <>
-          <h2
-            id={headingId}
-            className="text-sm font-medium text-zinc-600 dark:text-zinc-400"
-          >
-            {SURVEY_MESSAGES.rankingPoolHeading(options.length)}
-          </h2>
-          <ul aria-labelledby={headingId} className="grid w-full gap-2">
-            {options.map((option) => (
-              <PoolItem
-                key={option.value}
-                option={option}
-                isPending={isPending}
-                onTap={onTap}
-                register={register}
-              />
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
   );
 }
 
@@ -448,11 +221,13 @@ export function RankingForm({
   const optionByValue = new Map(options.map((o) => [o.value, o]));
   const labelOf = (value: number | null) =>
     (value != null ? optionByValue.get(value)?.label : undefined) ?? "";
-  const poolOptions = options.filter((o) => !ranked.includes(o.value));
+  // Display order: numbered items in rank order, then the rest as written.
+  const rows = [
+    ...ranked.flatMap((value) => optionByValue.get(value) ?? []),
+    ...options.filter((o) => !ranked.includes(o.value)),
+  ];
 
-  // Focus: after a tap / Remove / Move the control the participant was using
-  // moves or unmounts, so the key of the element to focus is recorded here
-  // and applied in an effect once the new ranking has rendered.
+  // A tapped row moves, so keep focus on it once the new order has rendered.
   const focusTargets = useRef(new Map<string, HTMLElement>());
   const focusAfterRef = useRef<string | null>(null);
   const register = useCallback<RegisterFocus>((key, element) => {
@@ -471,32 +246,13 @@ export function RankingForm({
     focusTargets.current.get(key)?.focus({ preventScroll: true });
   }, [ranked]);
 
-  const place = useCallback(
+  const toggle = useCallback(
     (value: number) => {
       setError(null);
-      const pool = options.filter((o) => !ranked.includes(o.value));
-      const index = pool.findIndex((o) => o.value === value);
-      const neighbour = pool[index + 1] ?? pool[index - 1];
-      focusAfterRef.current = neighbour ? `pool-${neighbour.value}` : null;
-      setRanked((current) => rankNext(current, value));
-    },
-    [setError, options, ranked]
-  );
-
-  const remove = useCallback(
-    (value: number) => {
-      setError(null);
-      focusAfterRef.current = `pool-${value}`;
-      setRanked((current) => unrank(current, value));
-    },
-    [setError]
-  );
-
-  const move = useCallback(
-    (value: number, direction: -1 | 1) => {
-      setError(null);
-      focusAfterRef.current = `${direction === -1 ? "up" : "down"}-${value}`;
-      setRanked((current) => moveRank(current, value, direction));
+      focusAfterRef.current = itemId(value);
+      setRanked((current) =>
+        current.includes(value) ? unrank(current, value) : rankNext(current, value)
+      );
     },
     [setError]
   );
@@ -561,17 +317,15 @@ export function RankingForm({
     onDragOver({ active, over }) {
       const value = valueFromId(active.id);
       const label = labelOf(value);
-      if (value == null || !over) {
+      const next =
+        value != null && over ? resolveDrop(ranked, value, over.id) : null;
+      if (value == null || !next) {
         return SURVEY_MESSAGES.rankingDragOverNone(label);
       }
-      if (String(over.id) === POOL_ID) {
-        return SURVEY_MESSAGES.rankingDragOverPool(label);
-      }
-      const next = resolveDrop(ranked, value, over.id);
-      const slot = (next ?? ranked).indexOf(value) + 1;
-      return slot > 0
-        ? SURVEY_MESSAGES.rankingDragOverSlot(label, slot)
-        : SURVEY_MESSAGES.rankingDragOverNone(label);
+      const rank = next.indexOf(value) + 1;
+      return rank > 0
+        ? SURVEY_MESSAGES.rankingDragOverRank(label, rank)
+        : SURVEY_MESSAGES.rankingDragOverUnranked(label);
     },
     onDragEnd({ active, over }) {
       const value = valueFromId(active.id);
@@ -584,7 +338,7 @@ export function RankingForm({
       const rank = next.indexOf(value) + 1;
       return rank > 0
         ? SURVEY_MESSAGES.rankingDropped(label, rank, total)
-        : SURVEY_MESSAGES.rankingDroppedPool(label);
+        : SURVEY_MESSAGES.rankingDroppedUnranked(label);
     },
     onDragCancel({ active }) {
       return SURVEY_MESSAGES.rankingDragCancel(labelOf(valueFromId(active.id)));
@@ -592,21 +346,16 @@ export function RankingForm({
   };
 
   // The same resolver that applies a drop drives the highlight, so the ring
-  // always shows where the item will really land.
+  // always shows the row the item will really take.
   const dropResult =
     activeValue !== null && overId !== null
       ? resolveDrop(ranked, activeValue, overId)
       : null;
-  const highlightPool =
-    dropResult !== null && overId !== null && String(overId) === POOL_ID;
-  const highlightIndex =
-    dropResult !== null && activeValue !== null && !highlightPool
-      ? dropResult.indexOf(activeValue)
-      : -1;
+  const highlightValue = dropResult !== null ? valueFromId(overId) : null;
 
   const hintId = `${statementId}-hint`;
-  const poolHeadingId = `${statementId}-pool`;
-  const activeOption = activeValue !== null ? optionByValue.get(activeValue) : undefined;
+  const activeOption =
+    activeValue !== null ? optionByValue.get(activeValue) : undefined;
   const activeRank = activeValue !== null ? ranked.indexOf(activeValue) + 1 : 0;
 
   return (
@@ -614,19 +363,21 @@ export function RankingForm({
       className="flex flex-col gap-4"
       data-ranking-dragging={activeValue !== null ? "true" : "false"}
     >
-      <p id={hintId} className="text-sm text-zinc-600 dark:text-zinc-400">
-        {SURVEY_MESSAGES.rankingHint}
-      </p>
-      <p
-        className="text-sm font-medium text-zinc-600 dark:text-zinc-400"
-        aria-live="polite"
-      >
-        {SURVEY_MESSAGES.rankingProgress(ranked.length, total)}
-      </p>
+      <div className="flex flex-col gap-1">
+        <p id={hintId} className="text-sm text-zinc-600 dark:text-zinc-400">
+          {SURVEY_MESSAGES.rankingHint}
+        </p>
+        <p
+          className="text-sm font-medium text-zinc-600 dark:text-zinc-400"
+          aria-live="polite"
+        >
+          {SURVEY_MESSAGES.rankingProgress(ranked.length, total)}
+        </p>
+      </div>
       <DndContext
         id={`ranking-${statementId}`}
         sensors={sensors}
-        collisionDetection={collisionDetection}
+        collisionDetection={closestCenter}
         accessibility={{
           screenReaderInstructions: {
             draggable: SURVEY_MESSAGES.rankingDragInstructions,
@@ -638,75 +389,50 @@ export function RankingForm({
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="flex flex-col gap-1">
-          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-            {SURVEY_MESSAGES.rankingMostImportant}
-          </p>
-          <SortableContext
-            items={ranked.map(itemId)}
-            strategy={verticalListSortingStrategy}
+        <SortableContext
+          items={rows.map((o) => itemId(o.value))}
+          strategy={verticalListSortingStrategy}
+        >
+          <ul
+            aria-labelledby={labelledById}
+            aria-describedby={hintId}
+            className="grid w-full gap-2"
           >
-            <ol
-              aria-labelledby={labelledById}
-              aria-describedby={hintId}
-              className="grid w-full gap-2"
-            >
-              {options.map((_, index) => {
-                const value = ranked[index];
-                const option =
-                  value !== undefined ? optionByValue.get(value) : undefined;
-                return option ? (
-                  <FilledSlot
-                    key={itemId(option.value)}
-                    option={option}
-                    rank={index + 1}
-                    total={total}
-                    rankedCount={ranked.length}
-                    isPending={isPending}
-                    highlighted={highlightIndex === index}
-                    onMove={move}
-                    onRemove={remove}
-                    register={register}
-                  />
-                ) : (
-                  <EmptySlot
-                    key={slotId(index)}
-                    index={index}
-                    isPending={isPending}
-                    highlighted={highlightIndex === index}
-                  />
-                );
-              })}
-            </ol>
-          </SortableContext>
-          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-            {SURVEY_MESSAGES.rankingLeastImportant}
-          </p>
-        </div>
-        <Pool
-          options={poolOptions}
-          highlighted={highlightPool}
-          isPending={isPending}
-          onTap={place}
-          register={register}
-          headingId={poolHeadingId}
-        />
+            {rows.map((option) => (
+              <RankingRow
+                key={itemId(option.value)}
+                option={option}
+                rank={ranked.indexOf(option.value) + 1}
+                total={total}
+                isPending={isPending}
+                highlighted={highlightValue === option.value}
+                onTap={toggle}
+                register={register}
+              />
+            ))}
+          </ul>
+        </SortableContext>
         <DragOverlay dropAnimation={null}>
           {activeOption ? (
-            <div className="flex min-h-11 items-center gap-2 rounded-lg border border-primary bg-background px-3 py-2 text-base shadow-lg">
+            <div className="flex min-h-11 items-center gap-3 rounded-lg border border-primary bg-background px-3 py-2 text-base shadow-lg">
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
+                  activeRank > 0
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-dashed border-zinc-400"
+                )}
+              >
+                {activeRank > 0 ? activeRank : null}
+              </span>
+              <span className="min-w-0 flex-1 break-words">
+                {activeOption.label}
+              </span>
               <GripVertical
                 aria-hidden="true"
-                className="size-5 shrink-0 text-zinc-500 dark:text-zinc-400"
+                className="size-5 shrink-0 text-zinc-400"
               />
-              {activeRank > 0 ? (
-                <span
-                  aria-hidden="true"
-                  className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-sm font-semibold text-primary-foreground"
-                >
-                  {activeRank}
-                </span>
-              ) : null}
-              <span className="min-w-0 break-words">{activeOption.label}</span>
             </div>
           ) : null}
         </DragOverlay>

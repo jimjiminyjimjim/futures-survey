@@ -129,13 +129,17 @@ test.describe("session 2 ranking — @static (no DB)", () => {
     expect(input).toEqual([1, 2, 3]);
   });
 
-  test("ranking slot/pool copy", () => {
-    expect(SURVEY_MESSAGES.rankingPoolHeading(3)).toBe("Still to rank (3)");
-    expect(SURVEY_MESSAGES.rankingSlotEmpty(2)).toBe("Slot 2, empty");
-    expect(SURVEY_MESSAGES.rankingRemove("X")).toBe("Remove X");
+  test("ranking single-list copy", () => {
+    expect(SURVEY_MESSAGES.rankingItemUnranked("X")).toBe("X, not ranked yet");
+    expect(SURVEY_MESSAGES.rankingItemRanked("X", 2, 6)).toBe(
+      "X, ranked 2 of 6"
+    );
     expect(SURVEY_MESSAGES.rankingDragHandle("X")).toBe("Drag X");
     expect(SURVEY_MESSAGES.rankingDropped("X", 2, 6)).toBe(
       "X dropped, ranked 2 of 6."
+    );
+    expect(SURVEY_MESSAGES.rankingDroppedUnranked("X")).toBe(
+      "X is no longer ranked."
     );
     expect(SURVEY_MESSAGES.rankingProgress(2, 6)).toBe("2 of 6 ranked");
   });
@@ -168,6 +172,10 @@ test.describe("session 2 ranking — @static (no DB)", () => {
       expect(form, token).toContain(token);
     }
     expect(form).toMatch(/<DndContext[\s\S]*?\bid=/);
+    // One list: no separate pool or empty slots, no up/down/remove buttons.
+    for (const gone of ["useDroppable", "rankingMoveUp", "rankingRemove", "ChevronUp"]) {
+      expect(form, gone).not.toContain(gone);
+    }
     expect(form).toMatch(/useQuestionKeyboard\(\{[\s\S]*?suspended/);
     expect(read("src/app/survey/[statementKey]/use-question-keyboard.ts")).toContain(
       "suspended"
