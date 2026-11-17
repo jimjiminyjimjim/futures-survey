@@ -142,6 +142,7 @@ test.describe("session 2 ranking — @static (no DB)", () => {
       "X is no longer ranked."
     );
     expect(SURVEY_MESSAGES.rankingProgress(2, 6)).toBe("2 of 6 ranked");
+    expect(SURVEY_MESSAGES.rankingUnrankedDivider).toBe("Not ranked yet");
   });
 
   test("moveRank: swaps with the neighbour, no-op at the edges or when unranked", () => {
@@ -172,6 +173,11 @@ test.describe("session 2 ranking — @static (no DB)", () => {
       expect(form, token).toContain(token);
     }
     expect(form).toMatch(/<DndContext[\s\S]*?\bid=/);
+    // The tap slides the row up (FLIP via element.animate), respecting
+    // reduced motion; a divider separates ranked from unranked.
+    expect(form).toContain("prefers-reduced-motion");
+    expect(form).toContain(".animate(");
+    expect(form).toContain('role="separator"');
     // One list: no separate pool or empty slots, no up/down/remove buttons.
     for (const gone of ["useDroppable", "rankingMoveUp", "rankingRemove", "ChevronUp"]) {
       expect(form, gone).not.toContain(gone);

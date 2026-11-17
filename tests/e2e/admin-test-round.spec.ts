@@ -339,7 +339,7 @@ test.describe.serial("admin test mode for an unopened round @admin-test-round", 
         })
         .click();
       await expect(
-        page.getByRole("button", {
+        page.getByRole("listitem", {
           name: SURVEY_MESSAGES.rankingItemRanked(option.label, i + 1, firstOptions.length),
           exact: true,
         })

@@ -18,7 +18,10 @@ import {
   type CopiedStatement,
   type CopiedTestRound,
 } from "../support/survey-fixtures";
-import { SURVEY_MESSAGES, RESULTS_CONSENT_VERSION } from "@/lib/survey/messages";
+import {
+  SURVEY_MESSAGES,
+  RESULTS_CONSENT_VERSION,
+} from "@/lib/survey/messages";
 import { ADMIN_MESSAGES } from "@/lib/admin/messages";
 import { PRESENTATION_MESSAGES } from "@/lib/presentation/messages";
 import { formatMean } from "@/lib/presentation/chart-math";
@@ -64,7 +67,7 @@ const EXPECTED_RANKING_OPTION_COUNTS: Record<string, number> = {
 function visibleText(
   page: Page,
   text: Parameters<Page["getByText"]>[0],
-  options?: Parameters<Page["getByText"]>[1]
+  options?: Parameters<Page["getByText"]>[1],
 ) {
   return page.getByText(text, options).filter({ visible: true });
 }
@@ -96,7 +99,9 @@ async function snapshotRealRound(roundId: string): Promise<RealRoundSnapshot> {
 
   const { data: round, error } = await client
     .from("rounds")
-    .select("id, round_number, title, intro, opens_at, closes_at, survey_id, session_number")
+    .select(
+      "id, round_number, title, intro, opens_at, closes_at, survey_id, session_number",
+    )
     .eq("id", roundId)
     .single();
   if (error || !round) {
@@ -116,7 +121,9 @@ async function snapshotRealRound(roundId: string): Promise<RealRoundSnapshot> {
 
   const { data: sections, error: sectionsError } = await client
     .from("sections")
-    .select("id, sort_order, label, title, prompt, scale_key, grouped, show_overview")
+    .select(
+      "id, sort_order, label, title, prompt, scale_key, grouped, show_overview",
+    )
     .eq("round_id", roundId)
     .order("sort_order");
   if (sectionsError) {
@@ -166,7 +173,11 @@ async function roundsOpenNow(): Promise<
   if (error) {
     throw error;
   }
-  return (data ?? []) as Array<{ id: string; title: string; round_number: number }>;
+  return (data ?? []) as Array<{
+    id: string;
+    title: string;
+    round_number: number;
+  }>;
 }
 
 /**
@@ -176,7 +187,7 @@ async function roundsOpenNow(): Promise<
 async function dragByHandle(
   page: Page,
   handle: Locator,
-  target: Locator
+  target: Locator,
 ): Promise<void> {
   await handle.scrollIntoViewIfNeeded();
   const from = await handle.boundingBox();
@@ -202,14 +213,14 @@ async function dragByHandle(
  * Ranks every option of the ranking question on screen in `desired` order
  * (one list: numbered items on top, unranked items below), asserting
  * Continue stays disabled until every item is ranked. With `exercise`, it
- * also taps a ranked item back out (later ranks close up) and tries
- * keyboard and pointer drag-and-drop.
+ * also checks the "Not ranked yet" line and tries keyboard and pointer
+ * drag-and-drop, including dragging an item below the line to un-rank it.
  */
 async function rankAll(
   page: Page,
   statement: CopiedStatement,
   desired: number[],
-  exercise: boolean
+  exercise: boolean,
 ): Promise<void> {
   const options = statement.options ?? [];
   const total = options.length;
@@ -226,9 +237,9 @@ async function rankAll(
       name: SURVEY_MESSAGES.rankingItemUnranked(labelOf(value)),
       exact: true,
     });
-  // A numbered row's tap button (tapping it un-numbers the item).
+  // A numbered row (not tappable; it moves only by dragging).
   const ranked = (value: number, rank: number) =>
-    page.getByRole("button", {
+    page.getByRole("listitem", {
       name: SURVEY_MESSAGES.rankingItemRanked(labelOf(value), rank, total),
       exact: true,
     });
@@ -238,7 +249,9 @@ async function rankAll(
       exact: true,
     });
   const progress = (n: number) =>
-    visibleText(page, SURVEY_MESSAGES.rankingProgress(n, total), { exact: true });
+    visibleText(page, SURVEY_MESSAGES.rankingProgress(n, total), {
+      exact: true,
+    });
   const dragging = (state: "true" | "false") =>
     page.locator(`[data-ranking-dragging="${state}"]`);
   const continueButton = page.getByRole("button", {
@@ -257,7 +270,9 @@ async function rankAll(
     await expect(unranked(option.value)).toBeVisible();
   }
   // No up/down/remove buttons any more.
-  await expect(page.getByRole("button", { name: /^(Move|Remove) / })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /^(Move|Remove) / }),
+  ).toHaveCount(0);
   await expect(continueButton).toBeDisabled();
 
   let start = 0;
@@ -275,17 +290,20 @@ async function rankAll(
     await expect(ranked(d2, 3)).toBeVisible();
     await expect(progress(3)).toBeVisible();
 
-    // Tap a numbered item: it loses its number and later ranks close up.
-    await ranked(d0, 1).click();
-    await expect(unranked(d0)).toBeVisible();
-    await expect(ranked(d1, 1)).toBeVisible();
-    await expect(ranked(d2, 2)).toBeVisible();
-    await expect(progress(2)).toBeVisible();
+    // The line sits between the numbered and the unranked items, and a
+    // numbered item is no longer a button.
+    await expect(
+      page.getByRole("separator").filter({
+        hasText: SURVEY_MESSAGES.rankingUnrankedDivider,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: SURVEY_MESSAGES.rankingItemRanked(labelOf(d0), 1, total),
+        exact: true,
+      }),
+    ).toHaveCount(0);
     await expect(continueButton).toBeDisabled();
-
-    // Re-rank it: it takes the next place, #3.
-    await unranked(d0).click();
-    await expect(ranked(d0, 3)).toBeVisible();
 
     // Keyboard drag, cancelled: the arrows and Escape belong to the drag, so
     // the page does not navigate and nothing moves.
@@ -299,30 +317,30 @@ async function rankAll(
     await page.keyboard.press("Escape");
     await expect(dragging("false")).toBeVisible();
     expect(page.url()).toBe(urlBefore);
-    await expect(ranked(d1, 1)).toBeVisible();
-    await expect(ranked(d2, 2)).toBeVisible();
-    await expect(ranked(d0, 3)).toBeVisible();
+    await expect(ranked(d0, 1)).toBeVisible();
+    await expect(ranked(d1, 2)).toBeVisible();
+    await expect(ranked(d2, 3)).toBeVisible();
 
     // Keyboard drag, dropped one place up: #3 swaps with #2.
-    await handle(d0).focus();
+    await handle(d2).focus();
     await page.keyboard.press("Space");
     await expect(dragging("true")).toBeVisible();
     await keyboardDragReady();
     await page.keyboard.press("ArrowUp");
     await expect(
       page.getByRole("status").filter({
-        hasText: SURVEY_MESSAGES.rankingDragOverRank(labelOf(d0), 2),
-      })
+        hasText: SURVEY_MESSAGES.rankingDragOverRank(labelOf(d2), 2),
+      }),
     ).toHaveCount(1);
     await page.keyboard.press("Space");
     await expect(dragging("false")).toBeVisible();
-    await expect(ranked(d1, 1)).toBeVisible();
-    await expect(ranked(d0, 2)).toBeVisible();
-    await expect(ranked(d2, 3)).toBeVisible();
+    await expect(ranked(d0, 1)).toBeVisible();
+    await expect(ranked(d2, 2)).toBeVisible();
+    await expect(ranked(d1, 3)).toBeVisible();
     expect(page.url()).toBe(urlBefore);
 
-    // Pointer drag between ranked rows: #2 onto #1 puts it first.
-    await dragByHandle(page, handle(d0), ranked(d1, 1));
+    // Pointer drag between ranked rows: #3 onto #2 takes its place.
+    await dragByHandle(page, handle(d1), ranked(d2, 2));
     await expect(ranked(d0, 1)).toBeVisible();
     await expect(ranked(d1, 2)).toBeVisible();
     await expect(ranked(d2, 3)).toBeVisible();
@@ -343,7 +361,8 @@ async function rankAll(
     await expect(ranked(d2, 3)).toBeVisible();
     await expect(ranked(d3, 4)).toBeVisible();
 
-    // (c) a numbered item dragged onto an unranked one loses its number.
+    // (c) a numbered item dragged below the line, onto an unranked one,
+    // loses its number.
     const spare = options.find((o) => ![d0, d1, d2, d3].includes(o.value));
     if (!spare) {
       throw new Error("rankAll: needs at least 5 options to exercise drags");
@@ -404,7 +423,9 @@ test.describe.serial("session 2 end to end @session-2", () => {
     if (openNow.length > 0) {
       skipReason = `Skipped: another round is open right now (${openNow
         .map((r) => `"${r.title}" #${r.round_number} ${r.id}`)
-        .join(", ")}). The Session 2 fixture can only be opened when no round is open.`;
+        .join(
+          ", ",
+        )}). The Session 2 fixture can only be opened when no round is open.`;
       return;
     }
 
@@ -424,7 +445,8 @@ test.describe.serial("session 2 end to end @session-2", () => {
     expect(R.statements.every((s) => !s.optional)).toBe(true);
     for (const section of R.sections) {
       const inSection = R.statements.filter((s) => s.sectionId === section.id);
-      const expectedOptions = EXPECTED_RANKING_OPTION_COUNTS[section.label ?? ""];
+      const expectedOptions =
+        EXPECTED_RANKING_OPTION_COUNTS[section.label ?? ""];
       if (expectedOptions !== undefined) {
         expect(inSection).toHaveLength(1);
         expect(inSection[0].kind).toBe("ranking");
@@ -432,7 +454,7 @@ test.describe.serial("session 2 end to end @session-2", () => {
       }
     }
     expect(R.sections.find((s) => s.label === "B2")?.scaleKey).toBe(
-      "importance_change"
+      "importance_change",
     );
 
     try {
@@ -515,7 +537,7 @@ test.describe.serial("session 2 end to end @session-2", () => {
     await signInViaCodePage(page, context, participantEmail);
     await expect(page).toHaveURL("/");
     await expect(
-      page.getByRole("heading", { level: 1, name: round.title, exact: true })
+      page.getByRole("heading", { level: 1, name: round.title, exact: true }),
     ).toBeVisible();
     await page
       .getByRole("button", { name: SURVEY_MESSAGES.beginCta, exact: true })
@@ -536,18 +558,24 @@ test.describe.serial("session 2 end to end @session-2", () => {
       // Section break: "Question n of 8" and the "B." style heading.
       await expect(page).toHaveURL(`/survey/section/${sectionNumber}`);
       await expect(
-        visibleText(page, SURVEY_MESSAGES.sectionOf(questionNumber, TOTAL_QUESTIONS), {
-          exact: true,
-        })
+        visibleText(
+          page,
+          SURVEY_MESSAGES.sectionOf(questionNumber, TOTAL_QUESTIONS),
+          {
+            exact: true,
+          },
+        ),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { level: 1, name: heading, exact: true })
+        page.getByRole("heading", { level: 1, name: heading, exact: true }),
       ).toBeVisible();
       await page
         .getByRole("button", { name: SURVEY_MESSAGES.continueCta, exact: true })
         .click();
 
-      const statements = round.statements.filter((s) => s.sectionId === section.id);
+      const statements = round.statements.filter(
+        (s) => s.sectionId === section.id,
+      );
       for (let j = 0; j < statements.length; j += 1) {
         const statement = statements[j];
         const isLastInSection = j === statements.length - 1;
@@ -560,25 +588,26 @@ test.describe.serial("session 2 end to end @session-2", () => {
 
         await expect(page).toHaveURL(`/survey/${statement.key}`);
         await expect(
-          page.getByRole("heading", { level: 1, name: heading, exact: true })
+          page.getByRole("heading", { level: 1, name: heading, exact: true }),
         ).toBeVisible();
         await expect(
-          visibleText(page,
+          visibleText(
+            page,
             SURVEY_MESSAGES.sectionProgress(
               questionNumber,
               TOTAL_QUESTIONS,
               j + 1,
               statements.length,
-              shownLabel(label)
+              shownLabel(label),
             ),
-            { exact: true }
-          )
+            { exact: true },
+          ),
         ).toBeVisible();
 
         if (statement.kind === "ranking") {
           const desired = chosenRanking(
             (statement.options ?? []).map((o) => o.value),
-            rankingIndex
+            rankingIndex,
           );
           await rankAll(page, statement, desired, rankingIndex === 0);
           expectedRankings.set(statement.key, desired);
@@ -598,11 +627,14 @@ test.describe.serial("session 2 end to end @session-2", () => {
           expect(options.length).toBeGreaterThan(0);
           for (const option of options) {
             await expect(
-              page.getByRole("radio", { name: option.label, exact: true })
+              page.getByRole("radio", { name: option.label, exact: true }),
             ).toBeVisible();
           }
           const chosen = options[j % options.length];
-          const radio = page.getByRole("radio", { name: chosen.label, exact: true });
+          const radio = page.getByRole("radio", {
+            name: chosen.label,
+            exact: true,
+          });
           await radio.click();
           await expect(radio).toBeChecked();
           await page
@@ -611,7 +643,7 @@ test.describe.serial("session 2 end to end @session-2", () => {
           expectedValues.set(statement.key, chosen.value);
         } else {
           throw new Error(
-            `Unexpected statement kind "${statement.kind}" on ${statement.key}`
+            `Unexpected statement kind "${statement.kind}" on ${statement.key}`,
           );
         }
 
@@ -625,16 +657,20 @@ test.describe.serial("session 2 end to end @session-2", () => {
 
     // Review: every question answered; give consent if it is offered.
     await expect(
-      page.getByRole("heading", { level: 1, name: SURVEY_MESSAGES.reviewHeading })
+      page.getByRole("heading", {
+        level: 1,
+        name: SURVEY_MESSAGES.reviewHeading,
+      }),
     ).toBeVisible();
     await expect(
-      visibleText(page,
+      visibleText(
+        page,
         SURVEY_MESSAGES.reviewAnswered(
           EXPECTED_STATEMENT_COUNT,
-          EXPECTED_STATEMENT_COUNT
+          EXPECTED_STATEMENT_COUNT,
         ),
-        { exact: true }
-      )
+        { exact: true },
+      ),
     ).toBeVisible();
 
     const saveButton = page.getByRole("button", {
@@ -655,7 +691,7 @@ test.describe.serial("session 2 end to end @session-2", () => {
 
     await expect(page).toHaveURL("/");
     await expect(
-      page.getByRole("heading", { name: SURVEY_MESSAGES.thanksHeading })
+      page.getByRole("heading", { name: SURVEY_MESSAGES.thanksHeading }),
     ).toBeVisible();
 
     // DB: the response is submitted, every answer is stored, rankings are
@@ -676,7 +712,7 @@ test.describe.serial("session 2 end to end @session-2", () => {
     expect(answersError).toBeNull();
     expect(answerRows).toHaveLength(EXPECTED_STATEMENT_COUNT);
     const answerByStatementId = new Map(
-      (answerRows ?? []).map((a) => [a.statement_id as string, a])
+      (answerRows ?? []).map((a) => [a.statement_id as string, a]),
     );
 
     for (const statement of round.statements) {
@@ -708,7 +744,9 @@ test.describe.serial("session 2 end to end @session-2", () => {
       expect(consentRows).toHaveLength(1);
       expect(consentRows![0].round_id).toBe(round.roundId);
       expect(consentRows![0].consented).toBe(true);
-      expect(consentRows![0].consent_text_version).toBe(RESULTS_CONSENT_VERSION);
+      expect(consentRows![0].consent_text_version).toBe(
+        RESULTS_CONSENT_VERSION,
+      );
       expect(consentRows![0].consented_at).not.toBeNull();
     } else {
       expect(consentRows).toEqual([]);
@@ -737,13 +775,16 @@ test.describe.serial("session 2 end to end @session-2", () => {
     await page.goto(`/admin/rounds/${round.roundId}/responses`);
     await expect(page).toHaveURL(`/admin/rounds/${round.roundId}`);
     await expect(
-      page.getByRole("heading", { level: 1, name: round.title, exact: true })
+      page.getByRole("heading", { level: 1, name: round.title, exact: true }),
     ).toBeVisible();
     const row = page.locator("tbody tr", { hasText: participantEmail });
     await expect(row).toHaveCount(1);
     await expect(row).toContainText(ADMIN_MESSAGES.badgeSubmitted);
     await expect(row).toContainText(
-      ADMIN_MESSAGES.answeredOf(EXPECTED_STATEMENT_COUNT, EXPECTED_STATEMENT_COUNT)
+      ADMIN_MESSAGES.answeredOf(
+        EXPECTED_STATEMENT_COUNT,
+        EXPECTED_STATEMENT_COUNT,
+      ),
     );
     if (consentGiven) {
       await expect(row).toContainText(ADMIN_MESSAGES.optedInBadge);
@@ -756,7 +797,7 @@ test.describe.serial("session 2 end to end @session-2", () => {
     await expect(page).toHaveURL(`/admin/rounds/${round.roundId}/present`);
     await page.waitForLoadState("networkidle");
     await expect(
-      page.getByRole("heading", { level: 1, name: round.title, exact: true })
+      page.getByRole("heading", { level: 1, name: round.title, exact: true }),
     ).toBeVisible();
 
     const slide = page.locator('section[aria-roledescription="slide"]');
@@ -793,26 +834,40 @@ test.describe.serial("session 2 end to end @session-2", () => {
     let sawRanking = false;
     let sawImportance = false;
 
-    for (let step = 0; step < 200 && !(sawRanking && sawImportance); step += 1) {
+    for (
+      let step = 0;
+      step < 200 && !(sawRanking && sawImportance);
+      step += 1
+    ) {
       if (!sawRanking && (await rankingBars.count()) > 0) {
         // Section A's ranking: option labels, most popular first, with the
         // mean rank (one respondent, so mean rank = their rank).
         await expect(
-          page.getByRole("heading", { level: 2, name: firstRanking.text, exact: true })
+          page.getByRole("heading", {
+            level: 2,
+            name: firstRanking.text,
+            exact: true,
+          }),
         ).toBeVisible();
         await expect(
-          visibleText(page, PRESENTATION_MESSAGES.rankingBarsSubtitle, { exact: true })
+          visibleText(page, PRESENTATION_MESSAGES.rankingBarsSubtitle, {
+            exact: true,
+          }),
         ).toBeVisible();
         const items = rankingBars.locator("li");
         await expect(items).toHaveCount(firstRankingOrder!.length);
         for (let i = 0; i < firstRankingOrder!.length; i += 1) {
           const option = firstRanking.options!.find(
-            (o) => o.value === firstRankingOrder![i]
+            (o) => o.value === firstRankingOrder![i],
           )!;
           await expect(items.nth(i)).toContainText(option.label);
-          await expect(items.nth(i)).toContainText(standalone(formatMean(i + 1)));
           await expect(items.nth(i)).toContainText(
-            standalone(PRESENTATION_MESSAGES.rankingFirstPercent(i === 0 ? 100 : 0))
+            standalone(formatMean(i + 1)),
+          );
+          await expect(items.nth(i)).toContainText(
+            standalone(
+              PRESENTATION_MESSAGES.rankingFirstPercent(i === 0 ? 100 : 0),
+            ),
           );
         }
         sawRanking = true;
@@ -832,7 +887,7 @@ test.describe.serial("session 2 end to end @session-2", () => {
         for (let i = 0; i < importanceLabels.length; i += 1) {
           await expect(items.nth(i)).toContainText(importanceLabels[i]);
           await expect(items.nth(i)).toContainText(
-            standalone(i + 1 === firstB2Value ? "100%" : "0%")
+            standalone(i + 1 === firstB2Value ? "100%" : "0%"),
           );
         }
         sawImportance = true;

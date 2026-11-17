@@ -102,13 +102,14 @@ export const SURVEY_MESSAGES = {
     "We couldn't save your choice. Check your connection and try again.",
   /** ranking helper text, shown above the list. */
   rankingHint:
-    "Tap the items in order of importance, most important first. Tap a numbered item again to un-number it, or drag the handle to move it.",
+    "Tap the items in order of importance, most important first. Drag the handle to reorder, or drag an item below the line to un-rank it.",
   /** ranking progress, e.g. "2 of 6 ranked". */
   rankingProgress: (ranked: number, total: number) =>
     `${ranked} of ${total} ranked`,
   rankingItemRanked: (label: string, rank: number, total: number) =>
     `${label}, ranked ${rank} of ${total}`,
   rankingItemUnranked: (label: string) => `${label}, not ranked yet`,
+  rankingUnrankedDivider: "Not ranked yet",
   rankingDragHandle: (label: string) => `Drag ${label}`,
   rankingDragInstructions:
     "To pick up an item, focus its drag handle and press Space or Enter. Use the up and down arrow keys to move it, Space or Enter to drop it, or Escape to cancel.",
