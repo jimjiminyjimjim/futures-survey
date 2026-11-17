@@ -45,6 +45,9 @@ function isButtonTarget(target: EventTarget | null): boolean {
  *  - ← / → page-navigate like Back / Next (never saving), except inside a
  *    radio group (its own roving focus owns the arrows) or a text field /
  *    slider (where arrows edit the value).
+ *  - `suspended` turns every shortcut off: a drag in progress (the ranking
+ *    form's keyboard drag-and-drop) owns the keyboard, so there is no Enter
+ *    submit and no arrow page-navigation until it ends.
  */
 export function useQuestionKeyboard({
   isPending,
@@ -52,15 +55,20 @@ export function useQuestionKeyboard({
   onDigit,
   onPrev,
   onNext,
+  suspended = false,
 }: {
   isPending: boolean;
   onPrimary: () => void;
   onDigit?: (n: number) => void;
   onPrev: () => void;
   onNext: () => void;
+  suspended?: boolean;
 }) {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      if (suspended) {
+        return;
+      }
       if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) {
         return;
       }
@@ -110,5 +118,5 @@ export function useQuestionKeyboard({
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [isPending, onPrimary, onDigit, onPrev, onNext]);
+  }, [isPending, onPrimary, onDigit, onPrev, onNext, suspended]);
 }

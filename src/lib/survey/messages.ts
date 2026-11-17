@@ -102,7 +102,7 @@ export const SURVEY_MESSAGES = {
     "We couldn't save your choice. Check your connection and try again.",
   /** ranking helper text, shown above the list. */
   rankingHint:
-    "Tap each item in order of importance, starting with the most important. Tap a numbered item again to remove it.",
+    "Tap the items in order of importance, most important first, or drag one by its handle onto a slot. Use the arrows or drag to reorder, and the cross to take an item out.",
   /** ranking progress, e.g. "2 of 6 ranked". */
   rankingProgress: (ranked: number, total: number) =>
     `${ranked} of ${total} ranked`,
@@ -111,6 +111,26 @@ export const SURVEY_MESSAGES = {
   rankingItemUnranked: (label: string) => `${label}, not ranked yet`,
   rankingMoveUp: (label: string) => `Move ${label} up`,
   rankingMoveDown: (label: string) => `Move ${label} down`,
+  rankingMostImportant: "Most important",
+  rankingLeastImportant: "Least important",
+  rankingPoolHeading: (n: number) => `Still to rank (${n})`,
+  rankingAllRanked: "All ranked",
+  rankingSlotEmpty: (slot: number) => `Slot ${slot}, empty`,
+  rankingRemove: (label: string) => `Remove ${label}`,
+  rankingDragHandle: (label: string) => `Drag ${label}`,
+  rankingDragInstructions:
+    "To pick up an item, focus its drag handle and press Space or Enter. Use the up and down arrow keys to move it, Space or Enter to drop it, or Escape to cancel.",
+  rankingDragStart: (label: string) => `Picked up ${label}.`,
+  rankingDragOverSlot: (label: string, slot: number) =>
+    `${label} is over slot ${slot}.`,
+  rankingDragOverPool: (label: string) =>
+    `${label} is over the items still to rank.`,
+  rankingDragOverNone: (label: string) => `${label} is not over a slot.`,
+  rankingDropped: (label: string, rank: number, total: number) =>
+    `${label} dropped, ranked ${rank} of ${total}.`,
+  rankingDroppedPool: (label: string) =>
+    `${label} is back with the items still to rank.`,
+  rankingDragCancel: (label: string) => `Cancelled. ${label} was not moved.`,
   /** "About this session" dialog trigger, shown on every /survey page. */
   sessionIntroOpen: "About this session",
 } as const;

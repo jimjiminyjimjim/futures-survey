@@ -1,11 +1,15 @@
 import { test, expect } from "@playwright/test";
+import fs from "node:fs";
+import path from "node:path";
 import {
   QUESTION_KINDS,
   isListKind,
   isRankingKind,
   storesChoiceValues,
   normaliseAnswer,
-  toggleRank,
+  rankNext,
+  unrank,
+  placeRank,
   moveRank,
   type AnswerRuleQuestion,
   type ChoiceOption,
@@ -20,12 +24,17 @@ import {
   sectionHeading,
   visibleSectionPrompt,
 } from "@/lib/survey/state";
+import { SURVEY_MESSAGES } from "@/lib/survey/messages";
 
 /**
  * Pure proofs for the participant side of the Session 2 ranking kind
  * (quick task 261117-eak): the answer rules, the tap/move helpers and the
  * small state helpers used by the section/statement pages. No DB.
  */
+
+function read(rel: string): string {
+  return fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+}
 
 const OPTIONS: ChoiceOption[] = [1, 2, 3].map((value) => ({
   value,
@@ -88,11 +97,47 @@ test.describe("session 2 ranking — @static (no DB)", () => {
     });
   });
 
-  test("toggleRank: tap ranks next, tap again removes and later ranks close up", () => {
-    expect(toggleRank([], 2)).toEqual([2]);
-    expect(toggleRank([2], 3)).toEqual([2, 3]);
-    expect(toggleRank([2, 3], 2)).toEqual([3]);
-    expect(toggleRank([1, 2, 3], 2)).toEqual([1, 3]);
+  test("rankNext: an unranked item takes the next slot; an already ranked one is unchanged", () => {
+    expect(rankNext([], 2)).toEqual([2]);
+    expect(rankNext([2], 3)).toEqual([2, 3]);
+    expect(rankNext([2, 3], 2)).toEqual([2, 3]);
+    const input = [2];
+    rankNext(input, 3);
+    expect(input).toEqual([2]);
+  });
+
+  test("unrank: removes an item and the later ranks close up", () => {
+    expect(unrank([1, 2, 3], 2)).toEqual([1, 3]);
+    expect(unrank([1, 3], 2)).toEqual([1, 3]);
+    const input = [1, 2, 3];
+    unrank(input, 2);
+    expect(input).toEqual([1, 2, 3]);
+  });
+
+  test("placeRank: inserts or moves with a clamped index, never mutating", () => {
+    expect(placeRank([], 5, 3)).toEqual([5]);
+    expect(placeRank([1, 2, 3], 4, 0)).toEqual([4, 1, 2, 3]);
+    expect(placeRank([1, 2, 3], 4, 1)).toEqual([1, 4, 2, 3]);
+    expect(placeRank([1, 2, 3], 4, 7)).toEqual([1, 2, 3, 4]);
+    expect(placeRank([1, 2], 3, -1)).toEqual([3, 1, 2]);
+    expect(placeRank([1, 2, 3, 4], 1, 3)).toEqual([2, 3, 4, 1]);
+    expect(placeRank([1, 2, 3, 4], 4, 0)).toEqual([4, 1, 2, 3]);
+    expect(placeRank([1, 2, 3], 2, 1)).toEqual([1, 2, 3]);
+    expect(placeRank([1, 2, 3], 1, 5)).toEqual([2, 3, 1]);
+    const input = [1, 2, 3];
+    placeRank(input, 2, 0);
+    expect(input).toEqual([1, 2, 3]);
+  });
+
+  test("ranking slot/pool copy", () => {
+    expect(SURVEY_MESSAGES.rankingPoolHeading(3)).toBe("Still to rank (3)");
+    expect(SURVEY_MESSAGES.rankingSlotEmpty(2)).toBe("Slot 2, empty");
+    expect(SURVEY_MESSAGES.rankingRemove("X")).toBe("Remove X");
+    expect(SURVEY_MESSAGES.rankingDragHandle("X")).toBe("Drag X");
+    expect(SURVEY_MESSAGES.rankingDropped("X", 2, 6)).toBe(
+      "X dropped, ranked 2 of 6."
+    );
+    expect(SURVEY_MESSAGES.rankingProgress(2, 6)).toBe("2 of 6 ranked");
   });
 
   test("moveRank: swaps with the neighbour, no-op at the edges or when unranked", () => {
@@ -105,6 +150,34 @@ test.describe("session 2 ranking — @static (no DB)", () => {
     const input = [1, 2, 3];
     moveRank(input, 2, -1);
     expect(input).toEqual([1, 2, 3]);
+  });
+
+  test("source lints: the ranking form drags by a handle with dnd-kit and suspends page shortcuts", () => {
+    const form = read("src/app/survey/[statementKey]/ranking-form.tsx");
+    expect(form).toContain('from "@dnd-kit/core"');
+    expect(form).toContain('from "@dnd-kit/sortable"');
+    for (const token of [
+      "setActivatorNodeRef",
+      "touch-none",
+      "PointerSensor",
+      "TouchSensor",
+      "KeyboardSensor",
+      "sortableKeyboardCoordinates",
+      "data-ranking-dragging",
+    ]) {
+      expect(form, token).toContain(token);
+    }
+    expect(form).toMatch(/<DndContext[\s\S]*?\bid=/);
+    expect(form).toMatch(/useQuestionKeyboard\(\{[\s\S]*?suspended/);
+    expect(read("src/app/survey/[statementKey]/use-question-keyboard.ts")).toContain(
+      "suspended"
+    );
+    const pkg = JSON.parse(read("package.json")) as {
+      dependencies: Record<string, string>;
+    };
+    expect(pkg.dependencies["@dnd-kit/core"]).toBe("6.3.1");
+    expect(pkg.dependencies["@dnd-kit/sortable"]).toBe("10.0.0");
+    expect(pkg.dependencies["@dnd-kit/utilities"]).toBe("3.2.2");
   });
 
   test("parentSectionHeading: numeric parents, letter+digit parents, bare letters, no parent title", () => {

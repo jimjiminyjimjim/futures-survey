@@ -330,15 +330,32 @@ test.describe.serial("admin test mode for an unopened round @admin-test-round", 
     const first = round.statements[0];
     expect(first.kind).toBe("ranking");
     await expect(page).toHaveURL(`${base}/test/survey/${first.key}`);
-    for (const option of first.options ?? []) {
+    const firstOptions = first.options ?? [];
+    for (const [i, option] of firstOptions.entries()) {
       await page
         .getByRole("button", {
           name: SURVEY_MESSAGES.rankingItemUnranked(option.label),
           exact: true,
         })
         .click();
+      await expect(
+        page.getByRole("listitem", {
+          name: SURVEY_MESSAGES.rankingItemRanked(option.label, i + 1, firstOptions.length),
+          exact: true,
+        })
+      ).toBeVisible();
     }
-    await page.getByRole("button", { name: SURVEY_MESSAGES.continueCta, exact: true }).click();
+    await expect(
+      page
+        .getByText(SURVEY_MESSAGES.rankingAllRanked, { exact: true })
+        .filter({ visible: true })
+    ).toBeVisible();
+    const continueAfterRanking = page.getByRole("button", {
+      name: SURVEY_MESSAGES.continueCta,
+      exact: true,
+    });
+    await expect(continueAfterRanking).toBeEnabled();
+    await continueAfterRanking.click();
     await expect(page).not.toHaveURL(`${base}/test/survey/${first.key}`);
 
     // Every other required statement through the admin's OWN JWT client:

@@ -111,6 +111,7 @@ test.describe("admin test round app — @static (no DB)", () => {
     for (const rel of [
       "src/lib/survey/state.ts",
       "src/app/survey/[statementKey]/statement-screen.tsx",
+      "src/app/survey/[statementKey]/ranking-form.tsx",
       "src/app/survey/section/[sectionNumber]/section-screen.tsx",
       "src/app/survey/review/review-screen.tsx",
     ]) {

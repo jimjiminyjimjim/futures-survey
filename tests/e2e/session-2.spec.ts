@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import {
   testEmail,
   adminClient,
@@ -170,10 +170,40 @@ async function roundsOpenNow(): Promise<
 }
 
 /**
- * Ranks every option of the ranking question on screen in `desired` order,
- * asserting Continue stays disabled until the last item is ranked. With
- * `exercise`, it also unranks an item (later ranks close up) and fixes the
- * order back with Move up / Move down.
+ * Drags an element by its handle onto a target with real mouse events: past
+ * the 5px activation distance first, then to the target's centre in steps.
+ */
+async function dragByHandle(
+  page: Page,
+  handle: Locator,
+  target: Locator
+): Promise<void> {
+  await handle.scrollIntoViewIfNeeded();
+  const from = await handle.boundingBox();
+  const to = await target.boundingBox();
+  if (!from || !to) {
+    throw new Error("dragByHandle: handle or target is not on screen");
+  }
+  const startX = from.x + from.width / 2;
+  const startY = from.y + from.height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX, startY + 12, { steps: 4 });
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, {
+    steps: 15,
+  });
+  await page.mouse.up();
+  // dnd-kit swallows clicks for a moment after a pointer drag ends (so the
+  // drop isn't also a click); a person can't click again that fast.
+  await page.waitForTimeout(250);
+}
+
+/**
+ * Ranks every option of the ranking question on screen in `desired` order
+ * (numbered slots on top, a pool of unranked items below), asserting
+ * Continue stays disabled until every slot is filled. With `exercise`, it
+ * also removes an item (later ranks close up), fixes the order with Move up
+ * / Move down, and tries keyboard and pointer drag-and-drop.
  */
 async function rankAll(
   page: Page,
@@ -190,14 +220,21 @@ async function rankAll(
     }
     return option.label;
   };
+  // A pool item's tap button.
   const unranked = (value: number) =>
     page.getByRole("button", {
       name: SURVEY_MESSAGES.rankingItemUnranked(labelOf(value)),
       exact: true,
     });
+  // A filled slot.
   const ranked = (value: number, rank: number) =>
-    page.getByRole("button", {
+    page.getByRole("listitem", {
       name: SURVEY_MESSAGES.rankingItemRanked(labelOf(value), rank, total),
+      exact: true,
+    });
+  const emptySlot = (slot: number) =>
+    page.getByRole("listitem", {
+      name: SURVEY_MESSAGES.rankingSlotEmpty(slot),
       exact: true,
     });
   const moveUp = (value: number) =>
@@ -210,40 +247,82 @@ async function rankAll(
       name: SURVEY_MESSAGES.rankingMoveDown(labelOf(value)),
       exact: true,
     });
+  const remove = (value: number) =>
+    page.getByRole("button", {
+      name: SURVEY_MESSAGES.rankingRemove(labelOf(value)),
+      exact: true,
+    });
+  const handle = (value: number) =>
+    page.getByRole("button", {
+      name: SURVEY_MESSAGES.rankingDragHandle(labelOf(value)),
+      exact: true,
+    });
+  const poolList = (count: number) =>
+    page.getByRole("list", {
+      name: SURVEY_MESSAGES.rankingPoolHeading(count),
+      exact: true,
+    });
   const progress = (n: number) =>
     visibleText(page, SURVEY_MESSAGES.rankingProgress(n, total), { exact: true });
+  const dragging = (state: "true" | "false") =>
+    page.locator(`[data-ranking-dragging="${state}"]`);
   const continueButton = page.getByRole("button", {
     name: SURVEY_MESSAGES.continueCta,
     exact: true,
   });
+  // dnd-kit's keyboard sensor starts listening for keys a moment after a
+  // drag is picked up (a setTimeout), so keys pressed instantly after Space
+  // are lost. A person can't press that fast; the test waits it out.
+  const keyboardDragReady = () => page.waitForTimeout(250);
 
-  // A first visit: nothing ranked, every option listed, Continue disabled.
+  // A first visit: every slot empty, every option in the pool, Continue
+  // disabled.
   await expect(progress(0)).toBeVisible();
+  await expect(
+    visibleText(page, SURVEY_MESSAGES.rankingMostImportant, { exact: true })
+  ).toBeVisible();
+  await expect(
+    visibleText(page, SURVEY_MESSAGES.rankingLeastImportant, { exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: SURVEY_MESSAGES.rankingPoolHeading(total),
+      exact: true,
+    })
+  ).toBeVisible();
+  for (let slot = 1; slot <= total; slot += 1) {
+    await expect(emptySlot(slot)).toBeVisible();
+  }
   for (const option of options) {
-    await expect(unranked(option.value)).toHaveAttribute("aria-pressed", "false");
+    await expect(unranked(option.value)).toBeVisible();
   }
   await expect(continueButton).toBeDisabled();
 
   let start = 0;
   if (exercise) {
-    const [d0, d1, d2] = desired;
+    expect(desired.length).toBeGreaterThanOrEqual(4);
+    const [d0, d1, d2, d3] = desired;
+    // Every slot and the pool on screen, so pointer drags need no scrolling.
+    await page.setViewportSize({ width: 1280, height: 1800 });
 
     await unranked(d0).click();
     await unranked(d1).click();
     await unranked(d2).click();
-    await expect(ranked(d0, 1)).toHaveAttribute("aria-pressed", "true");
+    await expect(ranked(d0, 1)).toBeVisible();
+    await expect(ranked(d1, 2)).toBeVisible();
     await expect(ranked(d2, 3)).toBeVisible();
     await expect(progress(3)).toBeVisible();
 
-    // Unrank #1: the later ranks close up and Continue stays disabled.
-    await ranked(d0, 1).click();
-    await expect(unranked(d0)).toHaveAttribute("aria-pressed", "false");
+    // Remove #1: it goes back to the pool and the later ranks close up.
+    await remove(d0).click();
+    await expect(unranked(d0)).toBeVisible();
     await expect(ranked(d1, 1)).toBeVisible();
     await expect(ranked(d2, 2)).toBeVisible();
     await expect(progress(2)).toBeVisible();
     await expect(continueButton).toBeDisabled();
 
-    // Re-rank it (it goes last, #3), then Move up twice to put it back first.
+    // Re-rank it (it takes the next slot, #3), then Move up twice to put it
+    // back first.
     await unranked(d0).click();
     await expect(ranked(d0, 3)).toBeVisible();
     await moveUp(d0).click();
@@ -264,19 +343,83 @@ async function rankAll(
     await expect(ranked(d2, 3)).toBeVisible();
     await expect(continueButton).toBeDisabled();
 
-    start = 3;
+    // Keyboard drag, cancelled: the arrows and Escape belong to the drag, so
+    // the page does not navigate and nothing moves.
+    const urlBefore = page.url();
+    await handle(d0).focus();
+    await page.keyboard.press("Space");
+    await expect(dragging("true")).toBeVisible();
+    await keyboardDragReady();
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("Escape");
+    await expect(dragging("false")).toBeVisible();
+    expect(page.url()).toBe(urlBefore);
+    await expect(ranked(d0, 1)).toBeVisible();
+    await expect(ranked(d1, 2)).toBeVisible();
+    await expect(ranked(d2, 3)).toBeVisible();
+
+    // Keyboard drag, dropped one slot down: the slot-1 item swaps with #2.
+    await handle(d0).focus();
+    await page.keyboard.press("Space");
+    await expect(dragging("true")).toBeVisible();
+    await keyboardDragReady();
+    await page.keyboard.press("ArrowDown");
+    await expect(
+      page.getByRole("status").filter({
+        hasText: SURVEY_MESSAGES.rankingDragOverSlot(labelOf(d0), 2),
+      })
+    ).toHaveCount(1);
+    await page.keyboard.press("Space");
+    await expect(dragging("false")).toBeVisible();
+    await expect(ranked(d1, 1)).toBeVisible();
+    await expect(ranked(d0, 2)).toBeVisible();
+    await moveUp(d0).click();
+    await expect(ranked(d0, 1)).toBeVisible();
+    await expect(ranked(d1, 2)).toBeVisible();
+    expect(page.url()).toBe(urlBefore);
+
+    // Pointer drag (a): a pool item onto a filled slot inserts it there and
+    // the later items shift down.
+    await dragByHandle(page, handle(d3), ranked(d0, 1));
+    await expect(ranked(d3, 1)).toBeVisible();
+    await expect(ranked(d0, 2)).toBeVisible();
+    await expect(ranked(d1, 3)).toBeVisible();
+    await expect(ranked(d2, 4)).toBeVisible();
+    await expect(progress(4)).toBeVisible();
+
+    // (b) between filled slots: reorder.
+    await dragByHandle(page, handle(d3), ranked(d2, 4));
+    await expect(ranked(d0, 1)).toBeVisible();
+    await expect(ranked(d1, 2)).toBeVisible();
+    await expect(ranked(d2, 3)).toBeVisible();
+    await expect(ranked(d3, 4)).toBeVisible();
+
+    // (c) a slot item onto the pool unranks it.
+    await dragByHandle(page, handle(d3), poolList(total - 4));
+    await expect(unranked(d3)).toBeVisible();
+    await expect(progress(3)).toBeVisible();
+    await expect(ranked(d2, 3)).toBeVisible();
+    await unranked(d3).click();
+    await expect(ranked(d3, 4)).toBeVisible();
+
+    await page.setViewportSize({ width: 1280, height: 720 });
+    start = 4;
   }
 
   for (let i = start; i < desired.length; i += 1) {
     await expect(continueButton).toBeDisabled();
     await unranked(desired[i]).click();
-    await expect(ranked(desired[i], i + 1)).toHaveAttribute("aria-pressed", "true");
+    await expect(ranked(desired[i], i + 1)).toBeVisible();
   }
 
   await expect(progress(total)).toBeVisible();
   for (let i = 0; i < desired.length; i += 1) {
     await expect(ranked(desired[i], i + 1)).toBeVisible();
   }
+  await expect(
+    visibleText(page, SURVEY_MESSAGES.rankingAllRanked, { exact: true })
+  ).toBeVisible();
   await expect(continueButton).toBeEnabled();
   await continueButton.click();
 }

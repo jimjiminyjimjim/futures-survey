@@ -285,14 +285,41 @@ export function hasAnswer(answer: AnswerValue | undefined): boolean {
 }
 
 /**
- * Ranking tap: an unranked item takes the next number; tapping a ranked
- * item removes it, and the items ranked after it close up by one. Pure.
+ * Ranking model: one gap-free array of option values in rank order. Ranked
+ * items always fill slots 1..k, so the empty slots are always k+1..N.
+ *
+ * rankNext (tap a pool item): an unranked item takes the next empty slot; an
+ * already ranked item leaves the ranking unchanged. Pure.
  */
-export function toggleRank(current: number[], value: number): number[] {
+export function rankNext(current: number[], value: number): number[] {
   if (current.includes(value)) {
-    return current.filter((v) => v !== value);
+    return [...current];
   }
   return [...current, value];
+}
+
+/**
+ * Ranking remove / drop-on-pool: takes the item out of the ranking and the
+ * items ranked after it close up by one. Pure.
+ */
+export function unrank(current: number[], value: number): number[] {
+  return current.filter((v) => v !== value);
+}
+
+/**
+ * Ranking drop: inserts a pool item, or moves an already ranked item, to a
+ * 0-based index. The item is removed first, then inserted at the index
+ * clamped to 0..length of the remaining array (so the ranking stays
+ * gap-free). Pure.
+ */
+export function placeRank(
+  current: number[],
+  value: number,
+  index: number
+): number[] {
+  const rest = current.filter((v) => v !== value);
+  const at = Math.min(Math.max(index, 0), rest.length);
+  return [...rest.slice(0, at), value, ...rest.slice(at)];
 }
 
 /**
