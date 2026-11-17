@@ -1,12 +1,5 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
 import { getSignedInUser, isCurrentUserAdmin } from "@/lib/auth/session";
 import { getSurveySnapshot, getResultsConsent } from "@/lib/survey/queries";
 import {
@@ -14,15 +7,21 @@ import {
   partAndQuestionsLabel,
   partLabel,
   buildSectionSummaries,
+  countQuestions,
 } from "@/lib/survey/state";
-import { SURVEY_MESSAGES } from "@/lib/survey/messages";
+import {
+  LIVE_SURVEY_PATHS,
+  reviewHref,
+  sectionHref,
+  statementHref,
+} from "@/lib/survey/paths";
 import {
   NoOpenRoundScreen,
   SurveyErrorScreen,
   ThanksScreen,
 } from "@/components/survey/status-screens";
 import { ResultsConsentStatus } from "@/components/survey/results-consent-status";
-import { NavButton } from "@/components/survey/nav-button";
+import { StartCard } from "@/components/survey/start-card";
 import { ParticipantHeader } from "@/components/participant-header";
 
 // This route reads cookies() on every request to decide signed-in vs
@@ -54,11 +53,16 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const [isAdmin, snapshot, resultsConsent] = await Promise.all([
+  // Consent is per session, so the snapshot (which resolves the open round)
+  // loads first and the consent lookup is keyed by that round.
+  const [isAdmin, snapshot] = await Promise.all([
     isCurrentUserAdmin(),
     getSurveySnapshot(user.id),
-    getResultsConsent(user.id),
   ]);
+  const resultsConsent = await getResultsConsent(
+    user.id,
+    snapshot.openRound?.id ?? null
+  );
 
   const orderedStatementKeys = snapshot.statements.map((s) => s.key);
   const answeredKeys = new Set<string>();
@@ -82,10 +86,10 @@ export default async function HomePage() {
   });
 
   if (screen.kind === "resume") {
-    redirect(`/survey/${screen.statementKey}`);
+    redirect(statementHref(LIVE_SURVEY_PATHS, screen.statementKey));
   }
   if (screen.kind === "review") {
-    redirect("/survey/review");
+    redirect(reviewHref(LIVE_SURVEY_PATHS));
   }
 
   return (
@@ -93,46 +97,24 @@ export default async function HomePage() {
     <ParticipantHeader email={user.email} isAdmin={isAdmin} />
     <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-zinc-50 px-4 py-12 dark:bg-black">
       {screen.kind === "start" ? (
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            {snapshot.openRound?.surveyTitle ? (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                {snapshot.openRound.surveyTitle}
-              </p>
-            ) : null}
-            <CardTitle
-              role="heading"
-              aria-level={1}
-              className="text-2xl font-semibold"
-            >
-              {screen.roundTitle}
-            </CardTitle>
-            <CardDescription className="text-base">
-              {snapshot.openRound?.intro
-                ? partLabel(
-                    snapshot.openRound?.partNumber ?? null,
-                    snapshot.openRound?.totalParts ?? null
-                  )
-                : partAndQuestionsLabel(
-                    snapshot.openRound?.partNumber ?? null,
-                    snapshot.openRound?.totalParts ?? null,
-                    new Set(snapshot.statements.map((s) => s.sectionId)).size
-                  )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {snapshot.openRound?.intro ? (
-              <p className="text-base">{snapshot.openRound.intro}</p>
-            ) : null}
-            {/* Nothing answered yet: always section 1's break screen, never
-                straight to screen.firstStatementKey — the section-break
-                interstitial feature wires "Begin" through the section
-                screens, not directly to a statement. */}
-            <NavButton href="/survey/section/1">
-              {SURVEY_MESSAGES.beginCta}
-            </NavButton>
-          </CardContent>
-        </Card>
+        <StartCard
+          surveyTitle={snapshot.openRound?.surveyTitle ?? null}
+          roundTitle={screen.roundTitle}
+          partText={
+            snapshot.openRound?.intro
+              ? partLabel(
+                  snapshot.openRound?.partNumber ?? null,
+                  snapshot.openRound?.totalParts ?? null
+                )
+              : partAndQuestionsLabel(
+                  snapshot.openRound?.partNumber ?? null,
+                  snapshot.openRound?.totalParts ?? null,
+                  countQuestions(buildSectionSummaries(snapshot.statements))
+                )
+          }
+          intro={snapshot.openRound?.intro ?? null}
+          beginHref={sectionHref(LIVE_SURVEY_PATHS, 1)}
+        />
       ) : null}
       {screen.kind === "no-round" ? (
         snapshot.hasError ? <SurveyErrorScreen /> : <NoOpenRoundScreen />

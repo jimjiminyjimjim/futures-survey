@@ -22,6 +22,7 @@ import {
 } from "@/lib/admin/rounds-queries";
 import { ADMIN_MESSAGES } from "@/lib/admin/messages";
 import { formatAdminDateTime } from "@/lib/admin/datetime";
+import { isUnopenedDraft } from "@/lib/unopened-draft";
 
 // This route reads cookies() (via getSignedInUser()) on every request,
 // which alone makes it dynamic under next.config.ts's cacheComponents.
@@ -93,6 +94,10 @@ function SurveyRoundsTable({ rounds }: { rounds: AdminRoundRow[] }) {
                   round.startedCount,
                   round.submittedCount
                 )}
+                {isUnopenedDraft(round.opensAt, round.closesAt) &&
+                round.startedCount > 0
+                  ? ADMIN_MESSAGES.testAnswersSuffix
+                  : null}
               </TableCell>
               <TableCell className="p-2 text-right">
                 <RoundActionsMenu

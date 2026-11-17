@@ -91,9 +91,11 @@ export function SlideView({
               {slide.sectionTitle}
             </h2>
           </div>
-          <p className="max-w-5xl text-[32px] leading-[1.35] text-pres-ink">
-            {slide.sectionPrompt}
-          </p>
+          {slide.sectionPrompt.trim() !== slide.sectionTitle.trim() ? (
+            <p className="max-w-5xl text-[32px] leading-[1.35] text-pres-ink">
+              {slide.sectionPrompt}
+            </p>
+          ) : null}
         </div>
       );
 
@@ -242,6 +244,96 @@ export function SlideView({
               </div>
               {slide.revealText ? <RevealText text={slide.revealText} /> : null}
             </div>
+          </RevealedArea>
+        </div>
+      );
+    }
+
+    case "ranking": {
+      const isEmpty = slide.respondentCount === 0;
+      const statText = (item: (typeof slide.items)[number]) =>
+        PRESENTATION_MESSAGES.rankingStat(
+          item.meanRank !== null ? formatMean(item.meanRank) : "—",
+          item.firstPercent
+        );
+      const rows: ResultRow[] = slide.items.map((item) => ({
+        key: String(item.value),
+        label: item.label,
+        // points are highest for the best item; scorePercent (0..100)
+        // drives the bar. The big value is the short mean rank, with the
+        // first-place share as a small line under the label. Every item
+        // tied for first place takes the accent.
+        count: item.points,
+        percent: item.scorePercent,
+        displayValue: item.meanRank !== null ? formatMean(item.meanRank) : "—",
+        detail: PRESENTATION_MESSAGES.rankingFirstPercent(item.firstPercent),
+        highlight: item.position === 1,
+      }));
+      return (
+        <div className="mx-auto flex h-full w-full max-w-6xl flex-col justify-center-safe gap-6">
+          <h2 className="max-w-5xl text-[44px] leading-[1.15] font-semibold break-words">
+            {slide.text}
+          </h2>
+          <p className="text-[17px] text-pres-ink-secondary">
+            {slide.display === "list"
+              ? PRESENTATION_MESSAGES.rankingListSubtitle
+              : PRESENTATION_MESSAGES.rankingBarsSubtitle}
+          </p>
+          <RevealedArea revealed={revealed}>
+            {isEmpty ? (
+              <div className="mt-4">
+                <p className="text-[41px] leading-[1.15] font-semibold">
+                  {PRESENTATION_MESSAGES.emptyHeading}
+                </p>
+                <p className="mt-2 max-w-3xl text-[24px] leading-[1.5] text-pres-ink-secondary">
+                  {PRESENTATION_MESSAGES.emptyBody}
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-col gap-6">
+                {slide.display === "list" ? (
+                  <ol
+                    aria-label={PRESENTATION_MESSAGES.rankingListLabel}
+                    className="flex max-w-5xl flex-col gap-4"
+                  >
+                    {slide.items.map((item) => (
+                      <li key={item.value} className="flex items-baseline gap-6">
+                        <span
+                          aria-hidden="true"
+                          className={
+                            item.position === 1
+                              ? "w-12 shrink-0 text-right text-[44px] leading-none font-bold tabular-nums text-pres-accent"
+                              : "w-12 shrink-0 text-right text-[44px] leading-none font-normal tabular-nums text-pres-ink-secondary"
+                          }
+                        >
+                          {item.position}
+                        </span>
+                        <span className="flex min-w-0 flex-col gap-1">
+                          <span
+                            className={
+                              item.position === 1
+                                ? "text-[24px] leading-[1.25] font-semibold text-pres-accent"
+                                : "text-[24px] leading-[1.25] text-pres-ink"
+                            }
+                          >
+                            {item.label}
+                          </span>
+                          <span className="text-[17px] text-pres-ink-muted">
+                            {statText(item)}
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <ResultRows
+                    rows={rows}
+                    ariaLabel={PRESENTATION_MESSAGES.rankingBarsLabel}
+                  />
+                )}
+                {slide.revealText ? <RevealText text={slide.revealText} /> : null}
+              </div>
+            )}
           </RevealedArea>
         </div>
       );

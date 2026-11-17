@@ -5,6 +5,15 @@
  * from a server-rendered component without pulling in any request context.
  */
 
+import { displaySectionLabel, questionGroupKey } from "@/lib/section-label";
+import {
+  LIVE_SURVEY_PATHS,
+  reviewHref,
+  sectionHref,
+  statementHref,
+  type SurveyPaths,
+} from "@/lib/survey/paths";
+
 export const SECONDS_PER_STATEMENT = 10;
 
 /** '1 question' or '{n} questions'. */
@@ -74,6 +83,14 @@ export type SectionGroupableStatement = {
 export type SectionSummary = {
   /** 1-based position within this round (session). */
   sectionNumber: number;
+  /** 1-based number of the QUESTION this section belongs to. Sections
+   * labelled B1/B2 are two parts of one question, so they share a number;
+   * every other section is its own question (equal to sectionNumber when
+   * nothing is split, as in Session 1). */
+  questionNumber: number;
+  /** How many distinct questions the round has (8 for Session 2's 9
+   * sections). Equals the section count when nothing is split. */
+  totalQuestions: number;
   sectionId: string;
   /** Display numbering ("1", "2a", "11b"), or null. */
   label: string | null;
@@ -90,7 +107,14 @@ export type SectionSummary = {
 
 /** "2a. What is a designer?" — or just the title when unlabelled. */
 export function sectionHeading(label: string | null, title: string): string {
-  return label ? `${label}. ${title}` : title;
+  // B1 / B2 read as "B." (two parts of one question).
+  const shown = displaySectionLabel(label);
+  return shown ? `${shown}. ${title}` : title;
+}
+
+/** The label to show a participant: "B1" -> "B", everything else as is. */
+export function displayLabel(label: string | null): string | null {
+  return displaySectionLabel(label);
 }
 
 /**
@@ -104,8 +128,23 @@ export function parentSectionHeading(
   if (!parentTitle) {
     return null;
   }
-  const parentNumber = label?.match(/^\d+/)?.[0];
+  // "2a" -> "2" (numeric parent); "B1" -> "B" (a capital letter followed by
+  // a digit, as in Session 2's B1/B2). A bare letter ("A") has no parent
+  // number, so the title is shown alone.
+  const parentNumber =
+    label?.match(/^\d+/)?.[0] ?? label?.match(/^([A-Z])\d/)?.[1];
   return parentNumber ? `${parentNumber}. ${parentTitle}` : parentTitle;
+}
+
+/**
+ * The section prompt to show a participant, or null when it only repeats
+ * the section title (Session 2's D uses the same text for both).
+ */
+export function visibleSectionPrompt(
+  title: string,
+  prompt: string
+): string | null {
+  return prompt.trim() === title.trim() ? null : prompt;
 }
 
 /**
@@ -125,6 +164,8 @@ export function buildSectionSummaries(
     } else {
       sections.push({
         sectionNumber: sections.length + 1,
+        questionNumber: 0,
+        totalQuestions: 0,
         sectionId: statement.sectionId,
         label: statement.sectionLabel ?? null,
         parentTitle: statement.sectionParentTitle ?? null,
@@ -135,7 +176,29 @@ export function buildSectionSummaries(
       });
     }
   }
+
+  // Number the questions: letter+digit parts (B1, B2) share one number.
+  const questionNumberByGroup = new Map<string, number>();
+  for (const section of sections) {
+    const group = questionGroupKey(section.label, section.sectionId);
+    let number = questionNumberByGroup.get(group);
+    if (number === undefined) {
+      number = questionNumberByGroup.size + 1;
+      questionNumberByGroup.set(group, number);
+    }
+    section.questionNumber = number;
+  }
+  for (const section of sections) {
+    section.totalQuestions = questionNumberByGroup.size;
+  }
   return sections;
+}
+
+/** How many distinct questions a round's sections make up (B1/B2 count once). */
+export function countQuestions(
+  sections: ReadonlyArray<Pick<SectionSummary, "totalQuestions">>
+): number {
+  return sections[0]?.totalQuestions ?? 0;
 }
 
 /**
@@ -158,6 +221,9 @@ export function canonicalStatementKey(
 export type StatementSectionPosition = {
   sectionNumber: number;
   totalSections: number;
+  /** Question numbering (B1/B2 share one number); see SectionSummary. */
+  questionNumber: number;
+  totalQuestions: number;
   /** The section's display label ("2a"), or null. */
   sectionLabel: string | null;
   /** 1-based position of this statement within its own section. */
@@ -191,7 +257,8 @@ export type StatementNav = {
  */
 export function resolveStatementNav(
   sections: SectionSummary[],
-  statementKey: string
+  statementKey: string,
+  paths: SurveyPaths = LIVE_SURVEY_PATHS
 ): StatementNav | null {
   const sectionIndex = sections.findIndex((section) =>
     section.statementKeys.includes(statementKey)
@@ -210,13 +277,15 @@ export function resolveStatementNav(
     // screen or review), and "position" reports the whole section as
     // complete in one step.
     return {
-      prevHref: `/survey/section/${section.sectionNumber}`,
+      prevHref: sectionHref(paths, section.sectionNumber),
       nextHref: isLastSection
-        ? "/survey/review"
-        : `/survey/section/${section.sectionNumber + 1}`,
+        ? reviewHref(paths)
+        : sectionHref(paths, section.sectionNumber + 1),
       position: {
         sectionNumber: section.sectionNumber,
         totalSections: sections.length,
+        questionNumber: section.questionNumber,
+        totalQuestions: section.totalQuestions,
         sectionLabel: section.label,
         positionInSection: section.statementKeys.length,
         countInSection: section.statementKeys.length,
@@ -228,14 +297,14 @@ export function resolveStatementNav(
   const isLastInSection = indexInSection === section.statementKeys.length - 1;
 
   const prevHref = isFirstInSection
-    ? `/survey/section/${section.sectionNumber}`
-    : `/survey/${section.statementKeys[indexInSection - 1]}`;
+    ? sectionHref(paths, section.sectionNumber)
+    : statementHref(paths, section.statementKeys[indexInSection - 1]);
 
   const nextHref = !isLastInSection
-    ? `/survey/${section.statementKeys[indexInSection + 1]}`
+    ? statementHref(paths, section.statementKeys[indexInSection + 1])
     : isLastSection
-      ? "/survey/review"
-      : `/survey/section/${section.sectionNumber + 1}`;
+      ? reviewHref(paths)
+      : sectionHref(paths, section.sectionNumber + 1);
 
   return {
     prevHref,
@@ -243,6 +312,8 @@ export function resolveStatementNav(
     position: {
       sectionNumber: section.sectionNumber,
       totalSections: sections.length,
+      questionNumber: section.questionNumber,
+      totalQuestions: section.totalQuestions,
       sectionLabel: section.label,
       positionInSection: indexInSection + 1,
       countInSection: section.statementKeys.length,
@@ -253,13 +324,15 @@ export function resolveStatementNav(
 export type SectionScreen = {
   sectionNumber: number;
   totalSections: number;
+  questionNumber: number;
+  totalQuestions: number;
   label: string | null;
   parentTitle: string | null;
   title: string;
   prompt: string;
   questionCount: number;
   continueHref: string;
-  /** "/" for section 1; otherwise the previous section's last statement. */
+  /** paths.home ("/" live) for section 1; otherwise the previous section's last statement. */
   backHref: string;
 };
 
@@ -271,7 +344,8 @@ export type SectionScreen = {
  */
 export function resolveSectionScreen(
   sections: SectionSummary[],
-  sectionNumber: number
+  sectionNumber: number,
+  paths: SurveyPaths = LIVE_SURVEY_PATHS
 ): SectionScreen | null {
   if (
     !Number.isInteger(sectionNumber) ||
@@ -287,15 +361,23 @@ export function resolveSectionScreen(
   return {
     sectionNumber: section.sectionNumber,
     totalSections: sections.length,
+    questionNumber: section.questionNumber,
+    totalQuestions: section.totalQuestions,
     label: section.label,
     parentTitle: section.parentTitle,
     title: section.title,
     prompt: section.prompt,
     questionCount: section.statementKeys.length,
-    continueHref: `/survey/${section.statementKeys[0]}`,
+    continueHref: statementHref(paths, section.statementKeys[0]),
     backHref: previousSection
-      ? `/survey/${canonicalStatementKey(sections, previousSection.statementKeys[previousSection.statementKeys.length - 1])}`
-      : "/",
+      ? statementHref(
+          paths,
+          canonicalStatementKey(
+            sections,
+            previousSection.statementKeys[previousSection.statementKeys.length - 1]
+          )
+        )
+      : paths.home,
   };
 }
 

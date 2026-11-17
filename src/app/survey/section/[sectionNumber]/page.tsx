@@ -1,22 +1,9 @@
-import { redirect, notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
 import { getSignedInUser } from "@/lib/auth/session";
 import { getSurveySnapshot } from "@/lib/survey/queries";
-import {
-  buildSectionSummaries,
-  resolveSectionScreen,
-  parentSectionHeading,
-  sectionHeading,
-} from "@/lib/survey/state";
-import { SURVEY_MESSAGES } from "@/lib/survey/messages";
-import { SectionNav } from "./section-nav";
+import { LIVE_SURVEY_PATHS } from "@/lib/survey/paths";
+import { SectionScreen } from "./section-screen";
 
 // This route reads cookies() (via getSignedInUser()) on every request,
 // which alone makes it dynamic under next.config.ts's cacheComponents.
@@ -44,45 +31,14 @@ export default async function SectionPage({
   }
 
   const snapshot = await getSurveySnapshot(user.id);
-  if (!snapshot.openRound || snapshot.response?.submittedAt) {
-    redirect("/");
-  }
 
-  const sectionNumber = Number(sectionNumberParam);
-  const sections = buildSectionSummaries(snapshot.statements);
-  const screen = resolveSectionScreen(sections, sectionNumber);
-  if (!screen) {
-    notFound();
-  }
-  const parentLine = parentSectionHeading(screen.label, screen.parentTitle);
-
+  // The screen body lives in section-screen.tsx so the admin test route
+  // reuses it unchanged.
   return (
-    <div className="flex flex-1 flex-col items-center justify-center bg-black px-4 py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardDescription className="text-sm">
-            {SURVEY_MESSAGES.sectionOf(screen.sectionNumber, screen.totalSections)}
-          </CardDescription>
-          {parentLine ? (
-            <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400 break-words">
-              {parentLine}
-            </p>
-          ) : null}
-          <CardTitle
-            role="heading"
-            aria-level={1}
-            className="text-2xl font-semibold break-words"
-          >
-            {sectionHeading(screen.label, screen.title)}
-          </CardTitle>
-          <CardDescription className="text-base">
-            {screen.prompt}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <SectionNav continueHref={screen.continueHref} backHref={screen.backHref} />
-        </CardContent>
-      </Card>
-    </div>
+    <SectionScreen
+      snapshot={snapshot}
+      sectionNumberParam={sectionNumberParam}
+      paths={LIVE_SURVEY_PATHS}
+    />
   );
 }

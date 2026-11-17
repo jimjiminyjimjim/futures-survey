@@ -10,6 +10,14 @@ export type ResultRow = {
    * `percent` still drives the bar width and `count` still picks the
    * accented row. */
   displayValue?: string;
+  /** Small secondary line under the label (ranking slides: "33% ranked
+   * first"). Omitted for every other slide. */
+  detail?: string;
+  /** When set on ANY row, the accent follows this flag instead of the
+   * default "first row with the strictly greatest count", so exactly tied
+   * top items are all accented (ranking slides). A flagged row still needs
+   * count > 0. */
+  highlight?: boolean;
 };
 
 /**
@@ -45,6 +53,7 @@ export function ResultRows({
     }
   });
 
+  const usesHighlight = rows.some((row) => row.highlight !== undefined);
   const scale = Math.max(maxPercent, 100);
   // Long option lists (e.g. D's seven reasons) tighten up so the whole
   // slide still fits a laptop-height screen.
@@ -69,20 +78,37 @@ export function ResultRows({
         }
       >
         {rows.map((row, i) => {
-          const isWinner = i === winnerIndex && row.count > 0;
+          const isWinner = usesHighlight
+            ? row.highlight === true && row.count > 0
+            : i === winnerIndex && row.count > 0;
           const width = Math.max(0, Math.min(100, (row.percent / scale) * 100));
+          const labelNode = (
+            <span
+              className={
+                isWinner
+                  ? `${labelSize} leading-[1.25] font-semibold text-pres-accent`
+                  : `${labelSize} leading-[1.25] text-pres-ink-secondary`
+              }
+            >
+              {row.label}
+            </span>
+          );
+          // Only rows with a detail line get a wrapper, so every other
+          // slide's markup is exactly as before.
+          const labelBlock = row.detail ? (
+            <span className="flex min-w-0 flex-col">
+              {labelNode}
+              <span className="text-[15px] leading-[1.3] text-pres-ink-muted">
+                {row.detail}
+              </span>
+            </span>
+          ) : (
+            labelNode
+          );
           return (
             <li key={row.key} className={compact ? "flex flex-col gap-0.5" : "flex flex-col gap-1.5"}>
               <div className="flex items-baseline justify-between gap-6">
-                <span
-                  className={
-                    isWinner
-                      ? `${labelSize} leading-[1.25] font-semibold text-pres-accent`
-                      : `${labelSize} leading-[1.25] text-pres-ink-secondary`
-                  }
-                >
-                  {row.label}
-                </span>
+                {labelBlock}
                 <span
                   className={
                     isWinner

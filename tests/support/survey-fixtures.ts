@@ -122,9 +122,25 @@ export async function createTestRound(
   for (let attempt = 0; attempt < 2; attempt += 1) {
     roundNumber = await allocateRoundNumber(client, highest);
     const title = `e2e-${RUN_ID}-${roundNumber}${titleSuffix}`;
+    // Rounds belong to a survey (survey_id and session_number are required,
+    // and (survey_id, session_number) is unique), so each fixture round gets
+    // its own "e2e-" survey; deleteTestRound removes it with the round.
+    const { data: survey, error: surveyError } = await client
+      .from("surveys")
+      .insert({ title })
+      .select("id")
+      .single();
+    if (surveyError || !survey) {
+      throw surveyError ?? new Error("createTestRound: survey insert failed");
+    }
     const { data, error } = await client
       .from("rounds")
-      .insert({ round_number: roundNumber, title })
+      .insert({
+        round_number: roundNumber,
+        title,
+        survey_id: survey.id as string,
+        session_number: 1,
+      })
       .select("id")
       .single();
 
@@ -132,6 +148,7 @@ export async function createTestRound(
       roundId = data.id as string;
       break;
     }
+    await deleteEmptyTestSurvey(survey.id as string);
     // Only a unique-violation on round_number is worth one retry with a
     // freshly re-rolled number; any other error is a real failure.
     if (error?.code !== "23505") {
@@ -238,7 +255,7 @@ export async function deleteTestRound(roundId: string): Promise<void> {
 
   const { data: round, error: roundLookupError } = await client
     .from("rounds")
-    .select("title, round_number")
+    .select("title, round_number, survey_id")
     .eq("id", roundId)
     .maybeSingle();
   if (roundLookupError) {
@@ -268,12 +285,70 @@ export async function deleteTestRound(roundId: string): Promise<void> {
     throw responsesError;
   }
 
+  // Per-session results consent references rounds(id) with no ON DELETE
+  // CASCADE, so a fixture round a participant opted in on can only be
+  // deleted once its consent rows are gone.
+  const { error: consentError } = await client
+    .from("results_consent_rounds")
+    .delete()
+    .eq("round_id", roundId);
+  if (consentError) {
+    throw consentError;
+  }
+
   const { error: deleteRoundError } = await client
     .from("rounds")
     .delete()
     .eq("id", roundId);
   if (deleteRoundError) {
     throw deleteRoundError;
+  }
+
+  // A fixture round created by createTestRoundCopiedFrom owns its own
+  // "e2e-" survey; drop it once no round references it. A real survey is
+  // never matched (title prefix required).
+  const surveyId = (round.survey_id as string | null) ?? null;
+  if (surveyId) {
+    await deleteEmptyTestSurvey(surveyId);
+  }
+}
+
+/**
+ * Deletes a survey only if its title starts with "e2e-" and no round
+ * references it any more. Anything else is left exactly as it is.
+ */
+async function deleteEmptyTestSurvey(surveyId: string): Promise<void> {
+  const client = adminClient();
+
+  const { data: survey, error: surveyError } = await client
+    .from("surveys")
+    .select("id, title")
+    .eq("id", surveyId)
+    .maybeSingle();
+  if (surveyError) {
+    throw surveyError;
+  }
+  if (!survey || !String(survey.title).startsWith("e2e-")) {
+    return;
+  }
+
+  const { count, error: countError } = await client
+    .from("rounds")
+    .select("id", { count: "exact", head: true })
+    .eq("survey_id", surveyId);
+  if (countError) {
+    throw countError;
+  }
+  if ((count ?? 0) > 0) {
+    return;
+  }
+
+  const { error: deleteError } = await client
+    .from("surveys")
+    .delete()
+    .eq("id", surveyId);
+  if (deleteError) {
+    throw deleteError;
   }
 }
 
@@ -502,7 +577,7 @@ export async function signInViaCodePage(
 
   await page.goto("/login/code");
   await page.getByLabel("6-digit code").fill(code);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  // The code form submits itself once all 6 digits are in (no Sign in click).
   await page.waitForURL((url) => !url.pathname.includes("/login"));
 }
 
@@ -604,4 +679,339 @@ export async function seedRoundResponses(
   }
 
   return result;
+}
+
+export type CopiedSection = {
+  id: string;
+  sortOrder: number;
+  label: string | null;
+  title: string;
+  prompt: string;
+  scaleKey: string;
+  grouped: boolean;
+  showOverview: boolean;
+};
+
+export type CopiedStatement = {
+  id: string;
+  key: string;
+  text: string;
+  kind: string;
+  sortOrder: number;
+  sectionId: string;
+  optional: boolean;
+  options: Array<{ value: number; label: string }> | null;
+};
+
+export type CopiedTestRound = {
+  roundId: string;
+  roundNumber: number;
+  surveyId: string;
+  title: string;
+  /** In section sort_order. */
+  sections: CopiedSection[];
+  /** In round order: section sort_order, then statement sort_order. */
+  statements: CopiedStatement[];
+};
+
+const SECTION_COPY_COLUMNS =
+  "id, sort_order, label, parent_title, title, prompt, scale_key, grouped, show_overview, discussion_prompt";
+const STATEMENT_COPY_COLUMNS =
+  "id, section_id, sort_order, key, text, kind, options, choice_count, is_key, optional, prediction_of, label, context, question, reveal_text, left_label, right_label";
+
+/**
+ * Builds an isolated e2e draft round whose sections and statements are a
+ * verbatim copy of `sourceRoundId`'s (labels, kinds, options, scales, end
+ * labels, flags). The source round is only ever SELECTed — never updated,
+ * never given dates, never answered. The copy gets its own "e2e-" survey
+ * (rounds need a survey_id, and (survey_id, session_number) is unique), a
+ * round_number >= E2E_ROUND_NUMBER_MIN and an "e2e-" title, so
+ * deleteTestRound / sweepStaleTestData can remove it. It is inserted as a
+ * draft (dates null) so the content-lock triggers allow the inserts; open
+ * it afterwards with openTestRound. Any failure part-way through removes
+ * whatever was created.
+ */
+export async function createTestRoundCopiedFrom(
+  sourceRoundId: string
+): Promise<CopiedTestRound> {
+  const client = adminClient();
+
+  const { data: source, error: sourceError } = await client
+    .from("rounds")
+    .select("id, session_number, intro")
+    .eq("id", sourceRoundId)
+    .single();
+  if (sourceError || !source) {
+    throw sourceError ?? new Error(`createTestRoundCopiedFrom: source round ${sourceRoundId} not found`);
+  }
+
+  const { data: sourceSections, error: sectionsError } = await client
+    .from("sections")
+    .select(SECTION_COPY_COLUMNS)
+    .eq("round_id", sourceRoundId)
+    .order("sort_order");
+  if (sectionsError) {
+    throw sectionsError;
+  }
+
+  const { data: sourceStatements, error: statementsError } = await client
+    .from("statements")
+    .select(STATEMENT_COPY_COLUMNS)
+    .eq("round_id", sourceRoundId)
+    .order("sort_order");
+  if (statementsError) {
+    throw statementsError;
+  }
+
+  let surveyId: string | null = null;
+  let roundId: string | null = null;
+  let roundNumber = 0;
+  let title = "";
+
+  try {
+    for (let attempt = 0; attempt < 2 && !roundId; attempt += 1) {
+      roundNumber = await allocateRoundNumber(client, false);
+      title = `e2e-${RUN_ID}-${roundNumber}`;
+
+      const { data: survey, error: surveyError } = await client
+        .from("surveys")
+        .insert({ title })
+        .select("id")
+        .single();
+      if (surveyError || !survey) {
+        if (surveyError?.code === "23505") {
+          continue;
+        }
+        throw surveyError ?? new Error("createTestRoundCopiedFrom: survey insert failed");
+      }
+      surveyId = survey.id as string;
+
+      const { data: round, error: roundError } = await client
+        .from("rounds")
+        .insert({
+          round_number: roundNumber,
+          title,
+          survey_id: surveyId,
+          session_number: source.session_number,
+          intro: source.intro,
+        })
+        .select("id")
+        .single();
+      if (roundError || !round) {
+        await deleteEmptyTestSurvey(surveyId);
+        surveyId = null;
+        if (roundError?.code === "23505") {
+          continue;
+        }
+        throw roundError ?? new Error("createTestRoundCopiedFrom: round insert failed");
+      }
+      roundId = round.id as string;
+    }
+
+    if (!roundId || !surveyId) {
+      throw new Error(
+        "createTestRoundCopiedFrom: failed to allocate a unique round_number after retry"
+      );
+    }
+    const newRoundId = roundId;
+
+    const sections: CopiedSection[] = [];
+    const sectionIdMap = new Map<string, string>();
+    for (const s of sourceSections ?? []) {
+      const { data: inserted, error } = await client
+        .from("sections")
+        .insert({
+          round_id: newRoundId,
+          sort_order: s.sort_order,
+          label: s.label,
+          parent_title: s.parent_title,
+          title: s.title,
+          prompt: s.prompt,
+          scale_key: s.scale_key,
+          grouped: s.grouped,
+          show_overview: s.show_overview,
+          discussion_prompt: s.discussion_prompt,
+        })
+        .select("id")
+        .single();
+      if (error || !inserted) {
+        throw error ?? new Error("createTestRoundCopiedFrom: section insert failed");
+      }
+      sectionIdMap.set(s.id as string, inserted.id as string);
+      sections.push({
+        id: inserted.id as string,
+        sortOrder: s.sort_order as number,
+        label: (s.label as string | null) ?? null,
+        title: s.title as string,
+        prompt: s.prompt as string,
+        scaleKey: s.scale_key as string,
+        grouped: s.grouped === true,
+        showOverview: s.show_overview === true,
+      });
+    }
+
+    // Statements a prediction points at go in first, so prediction_of can
+    // be remapped to the copy's own statement id.
+    const statementIdMap = new Map<string, string>();
+    const ordered = [...(sourceStatements ?? [])].sort(
+      (a, b) => Number(a.prediction_of !== null) - Number(b.prediction_of !== null)
+    );
+    for (const st of ordered) {
+      const sectionId = sectionIdMap.get(st.section_id as string);
+      if (!sectionId) {
+        throw new Error(`createTestRoundCopiedFrom: statement ${st.key} has an unknown section`);
+      }
+      const predictionOf = st.prediction_of
+        ? statementIdMap.get(st.prediction_of as string)
+        : null;
+      if (st.prediction_of && !predictionOf) {
+        throw new Error(`createTestRoundCopiedFrom: statement ${st.key} predicts an uncopied statement`);
+      }
+      const { data: inserted, error } = await client
+        .from("statements")
+        .insert({
+          round_id: newRoundId,
+          section_id: sectionId,
+          sort_order: st.sort_order,
+          key: st.key,
+          text: st.text,
+          kind: st.kind,
+          options: st.options,
+          choice_count: st.choice_count,
+          is_key: st.is_key,
+          optional: st.optional,
+          prediction_of: predictionOf ?? null,
+          label: st.label,
+          context: st.context,
+          question: st.question,
+          reveal_text: st.reveal_text,
+          left_label: st.left_label,
+          right_label: st.right_label,
+        })
+        .select("id")
+        .single();
+      if (error || !inserted) {
+        throw error ?? new Error("createTestRoundCopiedFrom: statement insert failed");
+      }
+      statementIdMap.set(st.id as string, inserted.id as string);
+    }
+
+    const sectionOrder = new Map(sections.map((s) => [s.id, s.sortOrder]));
+    const statements: CopiedStatement[] = (sourceStatements ?? [])
+      .map((st) => ({
+        id: statementIdMap.get(st.id as string)!,
+        key: st.key as string,
+        text: st.text as string,
+        kind: st.kind as string,
+        sortOrder: st.sort_order as number,
+        sectionId: sectionIdMap.get(st.section_id as string)!,
+        optional: st.optional === true,
+        options:
+          (st.options as Array<{ value: number; label: string }> | null) ?? null,
+      }))
+      .sort(
+        (a, b) =>
+          sectionOrder.get(a.sectionId)! - sectionOrder.get(b.sectionId)! ||
+          a.sortOrder - b.sortOrder
+      );
+
+    return { roundId: newRoundId, roundNumber, surveyId, title, sections, statements };
+  } catch (error) {
+    if (roundId) {
+      await deleteTestRound(roundId).catch(() => undefined);
+    } else if (surveyId) {
+      await deleteEmptyTestSurvey(surveyId).catch(() => undefined);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Opens an e2e test round NOW: opens_at one minute in the past (so a small
+ * client/DB clock skew can't leave it "scheduled"), closes_at `minutes`
+ * from now. Refuses unless assertTestRound passes. The one-open-round
+ * trigger/constraint still applies, so this throws 23P01 (hint
+ * round_overlap) if any other round's window overlaps — callers should
+ * check for an open round first and treat 23P01 as "skip".
+ */
+export async function openTestRound(
+  roundId: string,
+  minutes: number
+): Promise<{ opensAt: string; closesAt: string }> {
+  await assertTestRound(roundId);
+  const now = Date.now();
+  const opensAt = iso6(new Date(now - 60 * 1000));
+  const closesAt = iso6(new Date(now + minutes * 60 * 1000));
+
+  const { error } = await adminClient()
+    .from("rounds")
+    .update({ opens_at: opensAt, closes_at: closesAt })
+    .eq("id", roundId);
+  if (error) {
+    throw error;
+  }
+  return { opensAt, closesAt };
+}
+
+/**
+ * Closes an open e2e test round now (closes_at = now). A round that never
+ * opened, or already closed, is left as it is. Refuses unless
+ * assertTestRound passes.
+ */
+export async function closeTestRound(roundId: string): Promise<void> {
+  await assertTestRound(roundId);
+  const client = adminClient();
+
+  const { data: round, error: roundError } = await client
+    .from("rounds")
+    .select("opens_at, closes_at")
+    .eq("id", roundId)
+    .maybeSingle();
+  if (roundError) {
+    throw roundError;
+  }
+  if (!round || !round.opens_at) {
+    return;
+  }
+
+  const now = Date.now();
+  const opensAt = new Date(round.opens_at as string).getTime();
+  const closesAt = round.closes_at
+    ? new Date(round.closes_at as string).getTime()
+    : null;
+  if (closesAt !== null && closesAt <= now) {
+    return;
+  }
+
+  const { error } = await client
+    .from("rounds")
+    .update({ closes_at: iso6(new Date(Math.max(now, opensAt + 1000))) })
+    .eq("id", roundId);
+  if (error) {
+    throw error;
+  }
+}
+
+/**
+ * Creates the auth user for a test PARTICIPANT (non-admin) and returns its
+ * id. Since 20261018000200 the test identities' domain
+ * (network.rca.ac.uk) is no longer on allowed_domains, so the
+ * before_user_created hook would refuse a brand-new e2e participant. The
+ * address is put on admin_emails only for the moment its user is created
+ * (which is what makes it eligible), then removed again, so the account
+ * signs in afterwards as an ordinary participant. No real domain is ever
+ * added to allowed_domains.
+ */
+export async function createTestParticipantUser(email: string): Promise<string> {
+  assertTestIdentity(email);
+
+  // Test addresses are gmail plus-addresses (rhodes.james+e2e-…@gmail.com) on
+  // an allowed domain, so issuing a code creates the auth user directly.
+  await issueEmailOtp(email);
+
+  const userId = await authUserIdByEmail(email);
+  if (!userId) {
+    throw new Error(`createTestParticipantUser: no auth user for ${email}`);
+  }
+  return userId;
 }

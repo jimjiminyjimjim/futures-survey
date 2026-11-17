@@ -4,7 +4,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
  * Service-role test helpers for the hosted (dev == live) Supabase project.
  *
  * Every mutating helper calls `assertTestIdentity()` first so a real admin
- * email or the real network.rca.ac.uk domain can never be touched by a test
+ * email or the real participant domains can never be touched by a test
  * run, even accidentally.
  */
 
@@ -21,7 +21,7 @@ export const RUN_ID = (
 ).toLowerCase();
 
 const TEST_EMAIL_PATTERN =
-  /^e2e-(participant|admin|pw)-[0-9a-z]+@network\.rca\.ac\.uk$/;
+  /^rhodes\.james\+e2e-(participant|admin|pw)-[0-9a-z]+@gmail\.com$/;
 // The probe address is ineligible but has a real MX record (hotmail.com — gmail.com
 // became an allowed domain on 2026-10-15), so
 // GoTrue's address validation passes and only the before_user_created hook
@@ -61,7 +61,7 @@ export function testEmail(
   if (kind === "probe") {
     return `dfs.e2e.probe.${RUN_ID}${variant ?? ""}@hotmail.com`;
   }
-  return `e2e-${kind}-${RUN_ID}${variant ?? ""}@network.rca.ac.uk`;
+  return `rhodes.james+e2e-${kind}-${RUN_ID}${variant ?? ""}@gmail.com`;
 }
 
 export function testDomain(variant?: string): string {
@@ -409,12 +409,49 @@ export async function sweepStaleTestData(): Promise<void> {
     if (deleteResponsesError) {
       throw deleteResponsesError;
     }
+    // results_consent_rounds.round_id has no ON DELETE CASCADE.
+    const { error: deleteConsentError } = await client
+      .from("results_consent_rounds")
+      .delete()
+      .eq("round_id", roundId);
+    if (deleteConsentError) {
+      throw deleteConsentError;
+    }
     const { error: deleteRoundError } = await client
       .from("rounds")
       .delete()
       .eq("id", roundId);
     if (deleteRoundError) {
       throw deleteRoundError;
+    }
+  }
+
+  // Stale e2e surveys (created by createTestRoundCopiedFrom): title starts
+  // with "e2e-" AND no round references it any more.
+  const { data: staleSurveys, error: staleSurveysError } = await client
+    .from("surveys")
+    .select("id")
+    .like("title", "e2e-%");
+  if (staleSurveysError) {
+    throw staleSurveysError;
+  }
+  for (const survey of staleSurveys ?? []) {
+    const surveyId = survey.id as string;
+    const { count, error: countError } = await client
+      .from("rounds")
+      .select("id", { count: "exact", head: true })
+      .eq("survey_id", surveyId);
+    if (countError) {
+      throw countError;
+    }
+    if ((count ?? 0) === 0) {
+      const { error: deleteSurveyError } = await client
+        .from("surveys")
+        .delete()
+        .eq("id", surveyId);
+      if (deleteSurveyError) {
+        throw deleteSurveyError;
+      }
     }
   }
 }

@@ -16,6 +16,7 @@ export const QUESTION_KINDS = [
   "rating",
   "two_ended",
   "choice_up_to",
+  "ranking",
 ] as const;
 
 export type QuestionKind = (typeof QUESTION_KINDS)[number];
@@ -27,7 +28,12 @@ export type ChoiceOption = {
   exclusive: boolean;
 };
 
-/** A saved answer: `value` for scale/choice_one/prediction, `choiceValues` for choice_multi/choice_exact. */
+/**
+ * A saved answer: `value` for scale/choice_one/prediction/rating/two_ended,
+ * `choiceValues` for choice_multi/choice_exact/choice_up_to and ranking. A
+ * ranking's `choiceValues` are in RANK ORDER (index 0 = most important),
+ * never sorted.
+ */
 export type AnswerValue = {
   value: number | null;
   choiceValues: number[] | null;
@@ -70,23 +76,60 @@ export type AnswerPayload =
   | { value: number; choiceValues: null }
   | { value: null; choiceValues: number[] };
 
-/** Whether a kind stores its answer in choice_values (vs value). */
+/**
+ * The three checkbox kinds, whose picks are stored sorted ascending. A
+ * ranking is deliberately NOT a list kind: it is stored in rank order, so
+ * it must never take the sorting path.
+ */
 export function isListKind(kind: QuestionKind): boolean {
   return (
     kind === "choice_multi" || kind === "choice_exact" || kind === "choice_up_to"
   );
 }
 
+export function isRankingKind(kind: QuestionKind): boolean {
+  return kind === "ranking";
+}
+
+/** Whether a kind stores its answer in choice_values (vs value). */
+export function storesChoiceValues(kind: QuestionKind): boolean {
+  return isListKind(kind) || isRankingKind(kind);
+}
+
 /**
  * Validates a submitted answer against its question and returns the
  * normalised payload to store (choice values deduplicated-checked and
- * sorted ascending), or null when the answer isn't valid for that kind.
+ * sorted ascending, except a ranking, which keeps its order and must be a
+ * full permutation of the options), or null when the answer isn't valid for
+ * that kind.
  */
 export function normaliseAnswer(
   question: AnswerRuleQuestion,
   input: { value?: number | null; choiceValues?: number[] | null }
 ): AnswerPayload | null {
   const optionValues = new Set(question.options.map((o) => o.value));
+
+  if (question.kind === "ranking") {
+    // A ranking must rank EVERY option exactly once, and the order is the
+    // answer, so it is kept as given (never sorted).
+    if (input.value != null) {
+      return null;
+    }
+    const ranked = input.choiceValues;
+    if (!ranked || ranked.length === 0) {
+      return null;
+    }
+    if (!ranked.every((v) => Number.isInteger(v) && optionValues.has(v))) {
+      return null;
+    }
+    if (new Set(ranked).size !== ranked.length) {
+      return null;
+    }
+    if (ranked.length !== question.options.length) {
+      return null;
+    }
+    return { value: null, choiceValues: [...ranked] };
+  }
 
   if (!isListKind(question.kind)) {
     if (input.choiceValues != null) {
@@ -239,4 +282,35 @@ export function hasAnswer(answer: AnswerValue | undefined): boolean {
     answer.value != null ||
     (answer.choiceValues != null && answer.choiceValues.length > 0)
   );
+}
+
+/**
+ * Ranking tap: an unranked item takes the next number; tapping a ranked
+ * item removes it, and the items ranked after it close up by one. Pure.
+ */
+export function toggleRank(current: number[], value: number): number[] {
+  if (current.includes(value)) {
+    return current.filter((v) => v !== value);
+  }
+  return [...current, value];
+}
+
+/**
+ * Ranking up/down: swaps a ranked item with its neighbour (direction -1 =
+ * up, towards rank 1). Returns an unchanged copy at either edge or when
+ * the item isn't ranked. Pure.
+ */
+export function moveRank(
+  current: number[],
+  value: number,
+  direction: -1 | 1
+): number[] {
+  const index = current.indexOf(value);
+  const target = index + direction;
+  if (index === -1 || target < 0 || target >= current.length) {
+    return [...current];
+  }
+  const next = [...current];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
 }

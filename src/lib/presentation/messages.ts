@@ -40,6 +40,8 @@ export const PRESENTATION_MESSAGES = {
   emptyBody:
     "Results will appear here once participants submit answers for this round.",
   loadFailed: "Couldn't load this round's results. Refresh to try again.",
+  // Quick task 261117-it4: an unopened draft's deck shows admin test answers.
+  testAnswersLabel: "Not open yet: test answers",
   previousSlide: "Previous slide",
   nextSlide: "Next slide",
   backToRounds: "Back to rounds",
@@ -85,4 +87,14 @@ export const PRESENTATION_MESSAGES = {
       ? `Question ${label} · ranked by average rating out of 10, highest first`
       : `Section ${sortOrder} · ranked by average rating out of 10, highest first`,
   ratingRankingLabel: "Statements ranked by average rating",
+
+  // 261117-eak — ranking slides (aggregate only).
+  rankingBarsSubtitle: "Average rank across the room (1 = most important)",
+  rankingListSubtitle: "Most to least popular",
+  rankingStat: (meanRankText: string, firstPercent: number) =>
+    `Avg rank ${meanRankText} · ${firstPercent}% ranked first`,
+  rankingFirstPercent: (firstPercent: number) =>
+    `${firstPercent}% ranked first`,
+  rankingBarsLabel: "Items ranked by average rank, best first",
+  rankingListLabel: "Items from most to least popular",
 } as const;

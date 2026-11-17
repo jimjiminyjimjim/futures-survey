@@ -1,0 +1,2826 @@
+{
+  "slides": [
+    {
+      "kind": "title",
+      "roundTitle": "Session 1: Holding space for scepticism",
+      "respondentCount": 30
+    },
+    {
+      "kind": "section-intro",
+      "label": "A",
+      "parentLabel": null,
+      "parentTitle": null,
+      "sectionTitle": "Existing knowledge and understanding",
+      "sectionPrompt": "How familiar are you with the following concepts and principles?",
+      "respondentCount": 30
+    },
+    {
+      "kind": "statement",
+      "scaleKey": "familiarity",
+      "statementKey": "sa_01",
+      "text": "Sustainability",
+      "sectionLabel": "A",
+      "sectionTitle": "Existing knowledge and understanding",
+      "questionNumber": 1,
+      "questionTotal": 8,
+      "isKey": false,
+      "respondentCount": 13,
+      "options": [
+        {
+          "value": 1,
+          "label": "I have never heard of this before",
+          "count": 2
+        },
+        {
+          "value": 2,
+          "label": "I’ve heard of it, but couldn’t explain it",
+          "count": 4
+        },
+        {
+          "value": 3,
+          "label": "I could explain this in a simple way",
+          "count": 6
+        },
+        {
+          "value": 4,
+          "label": "I understand this term and could discuss it",
+          "count": 1
+        }
+      ],
+      "revealText": null
+    },
+    {
+      "kind": "statement",
+      "scaleKey": "familiarity",
+      "statementKey": "sa_02",
+      "text": "Carbon Footprint",
+      "sectionLabel": "A",
+      "sectionTitle": "Existing knowledge and understanding",
+      "questionNumber": 2,
+      "questionTotal": 8,
+      "isKey": false,
+      "respondentCount": 11,
+      "options": [
+        {
+          "value": 1,
+          "label": "I have never heard of this before",
+          "count": 5
+        },
+        {
+          "value": 2,
+          "label": "I’ve heard of it, but couldn’t explain it",
+          "count": 0
+        },
+        {
+          "value": 3,
+          "label": "I could explain this in a simple way",
+          "count": 2
+        },
+        {
+          "value": 4,
+          "label": "I understand this term and could discuss it",
+          "count": 4
+        }
+      ],
+      "revealText": null
+    },
+    {
+      "kind": "statement",
+      "scaleKey": "familiarity",
+      "statementKey": "sa_04",
+      "text": "Circular Economy",
+      "sectionLabel": "A",
+      "sectionTitle": "Existing knowledge and understanding",
+      "questionNumber": 3,
+      "questionTotal": 8,
+      "isKey": false,
+      "respondentCount": 9,
+      "options": [
+        {
+          "value": 1,
+          "label": "I have never heard of this before",
+          "count": 1
+        },
+        {
+          "value": 2,
+          "label": "I’ve heard of it, but couldn’t explain it",
+          "count": 3
+        },
+        {
+          "value": 3,
+          "label": "I could explain this in a simple way",
+          "count": 5
+        },
+        {
+          "value": 4,
+          "label": "I understand this term and could discuss it",
+          "count": 0
+        }
+      ],
+      "revealText": null
+    },
+    {
+      "kind": "statement",
+      "scaleKey": "familiarity",
+      "statementKey": "sa_05",
+      "text": "Regenerative Design",
+      "sectionLabel": "A",
+      "sectionTitle": "Existing knowledge and understanding",
+      "questionNumber": 4,
+      "questionTotal": 8,
+      "isKey": false,
+      "respondentCount": 14,
+      "options": [
+        {
+          "value": 1,
+          "label": "I have never heard of this before",
+          "count": 4
+        },
+        {
+          "value": 2,
+          "label": "I’ve heard of it, but couldn’t explain it",
+          "count": 6
+        },
+        {
+          "value": 3,
+          "label": "I could explain this in a simple way",
+          "count": 1
+        },
+        {
+          "value": 4,
+          "label": "I understand this term and could discuss it",
+          "count": 3
+        }
+      ],
+      "revealText": null
+    },
+    {
+      "kind": "statement",
+      "scaleKey": "familiarity",
+      "statementKey": "sa_07",
+      "text": "Inclusive Design",
+      "sectionLabel": "A",
+      "sectionTitle": "Existing knowledge and understanding",
+      "questionNumber": 5,
+      "questionTotal": 8,
+      "isKey": false,
+      "respondentCount": 12,
+      "options": [
+        {
+          "value": 1,
+          "label": "I have never heard of this before",
+          "count": 0
+        },
+        {
+          "value": 2,
+          "label": "I’ve heard of it, but couldn’t explain it",
+          "count": 2
+        },
+        {
+          "value": 3,
+          "label": "I could explain this in a simple way",
+          "count": 4
+        },
+        {
+          "value": 4,
+          "label": "I understand this term and could discuss it",
+          "count": 6
+        }
+      ],
+      "revealText": null
+    },
+    {
+      "kind": "statement",
+      "scaleKey": "familiarity",
+      "statementKey": "sa_08",
+      "text": "Greenwashing",
+      "sectionLabel": "A",
+      "sectionTitle": "Existing knowledge and understanding",
+      "questionNumber": 6,
+      "questionTotal": 8,
+      "isKey": false,
+      "respondentCount": 10,
+      "options": [
+        {
+          "value": 1,
+          "label": "I have never heard of this before",
+          "count": 3
+        },
+        {
+          "value": 2,
+          "label": "I’ve heard of it, but couldn’t explain it",
+          "count": 5
+        },
+        {
+          "value": 3,
+          "label": "I could explain this in a simple way",
+          "count": 0
+        },
+        {
+          "value": 4,
+          "label": "I understand this term and could discuss it",
+          "count": 2
+        }
+      ],
+      "revealText": null
+    },
+    {
+      "kind": "statement",
+      "scaleKey": "familiarity",
+      "statementKey": "sa_09",
+      "text": "More-Than-Human Design",
+      "sectionLabel": "A",
+      "sectionTitle": "Existing knowledge and understanding",
+      "questionNumber": 7,
+      "questionTotal": 8,
+      "isKey": false,
+      "respondentCount": 15,
+      "options": [
+        {
+          "value": 1,
+          "label": "I have never heard of this before",
+          "count": 6
+        },
+        {
+          "value": 2,
+          "label": "I’ve heard of it, but couldn’t explain it",
+          "count": 1
+        },
+        {
+          "value": 3,
+          "label": "I could explain this in a simple way",
+          "count": 3
+        },
+        {
+          "value": 4,
+          "label": "I understand this term and could discuss it",
+          "count": 5
+        }
+      ],
+      "revealText": null
+    },
+    {
+      "kind": "statement",
+      "scaleKey": "familiarity",
+      "statementKey": "sa_10",
+      "text": "Systemic Design",
+      "sectionLabel": "A",
+      "sectionTitle": "Existing knowledge and understanding",
+      "questionNumber": 8,
+      "questionTotal": 8,
+      "isKey": false,
+      "respondentCount": 13,
+      "options": [
+        {
+          "value": 1,
+          "label": "I have never heard of this before",
+          "count": 2
+        },
+        {
+          "value": 2,
+          "label": "I’ve heard of it, but couldn’t explain it",
+          "count": 4
+        },
+        {
+          "value": 3,
+          "label": "I could explain this in a simple way",
+          "count": 6
+        },
+        {
+          "value": 4,
+          "label": "I understand this term and could discuss it",
+          "count": 1
+        }
+      ],
+      "revealText": null
+    },
+    {
+      "kind": "familiarity-overview",
+      "sectionSortOrder": 1,
+      "sectionLabel": "A",
+      "respondentCount": 30,
+      "terms": [
+        {
+          "statementKey": "sa_07",
+          "text": "Inclusive Design",
+          "sortOrder": 5,
+          "sum": 40,
+          "n": 12,
+          "mean": 3.3333333333333335,
+          "explainCount": 10,
+          "explainPercent": 83
+        },
+        {
+          "statementKey": "sa_04",
+          "text": "Circular Economy",
+          "sortOrder": 3,
+          "sum": 22,
+          "n": 9,
+          "mean": 2.4444444444444446,
+          "explainCount": 5,
+          "explainPercent": 56
+        },
+        {
+          "statementKey": "sa_02",
+          "text": "Carbon Footprint",
+          "sortOrder": 2,
+          "sum": 27,
+          "n": 11,
+          "mean": 2.4545454545454546,
+          "explainCount": 6,
+          "explainPercent": 55
+        },
+        {
+          "statementKey": "sa_01",
+          "text": "Sustainability",
+          "sortOrder": 1,
+          "sum": 32,
+          "n": 13,
+          "mean": 2.4615384615384617,
+          "explainCount": 7,
+          "explainPercent": 54
+        },
+        {
+          "statementKey": "sa_10",
+          "text": "Systemic Design",
+          "sortOrder": 8,
+          "sum": 32,
+          "n": 13,
+          "mean": 2.4615384615384617,
+          "explainCount": 7,
+          "explainPercent": 54
+        },
+        {
+          "statementKey": "sa_09",
+          "text": "More-Than-Human Design",
+          "sortOrder": 7,
+          "sum": 37,
+          "n": 15,
+          "mean": 2.466666666666667,
+          "explainCount": 8,
+          "explainPercent": 53
+        },
+        {
+          "statementKey": "sa_05",
+          "text": "Regenerative Design",
+          "sortOrder": 4,
+          "sum": 31,
+          "n": 14,
+          "mean": 2.2142857142857144,
+          "explainCount": 4,
+          "explainPercent": 29
+        },
+        {
+          "statementKey": "sa_08",
+          "text": "Greenwashing",
+          "sortOrder": 6,
+          "sum": 21,
+          "n": 10,
+          "mean": 2.1,
+          "explainCount": 2,
+          "explainPercent": 20
+        }
+      ]
+    },
+    {
+      "kind": "section-intro",
+      "label": "B",
+      "parentLabel": null,
+      "parentTitle": null,
+      "sectionTitle": "Where we meet sustainability in the real world",
+      "sectionPrompt": "Four quick trust checks, one per slide",
+      "respondentCount": 30
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sb_2a",
+      "text": "“SHEIN continues to push more responsible and circular production practices, both within the organization and for the overall industry, to positively contribute to the resilience of nature and the empowerment of local communities.”",
+      "itemLabel": "2a",
+      "context": "Shein (2023)",
+      "leadIn": null,
+      "question": "Gut reaction, no right answers: how much do you trust this?",
+      "sectionLabel": "B",
+      "sectionTitle": "Where we meet sustainability in the real world",
+      "isKey": false,
+      "respondentCount": 27,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 2
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 1
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 0
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 5
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 4
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 3
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 2
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 1
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 0
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 5
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 4
+        }
+      ],
+      "average": 5.6,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": "Italy’s competition authority fined Shein €1m in 2025 for misleading green claims, including claims about circularity."
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sb_2b",
+      "text": "To become “a net-zero emissions energy business” by 2050.",
+      "itemLabel": "2b",
+      "context": "Shell (2020)",
+      "leadIn": null,
+      "question": "Gut reaction, no right answers: how much do you trust this?",
+      "sectionLabel": "B",
+      "sectionTitle": "Where we meet sustainability in the real world",
+      "isKey": false,
+      "respondentCount": 26,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 3
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 2
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 1
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 0
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 5
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 4
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 3
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 2
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 1
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 0
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 5
+        }
+      ],
+      "average": 5.2,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": "in March 2024 Shell weakened its 2030 target. It changed a 20% cut in carbon intensity to a range of 15–20%. It dropped its 2035 target altogether, citing “uncertainty in the pace of change”. The 2050 goal remains, but Shell warns there is “significant risk” it may not meet it."
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sb_2c",
+      "text": "New petrol and diesel cars will no longer be sold from 2030.",
+      "itemLabel": "2c",
+      "context": "UK Government (2020)",
+      "leadIn": null,
+      "question": "Gut reaction, no right answers: how much do you trust this?",
+      "sectionLabel": "B",
+      "sectionTitle": "Where we meet sustainability in the real world",
+      "isKey": false,
+      "respondentCount": 25,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 4
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 3
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 2
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 1
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 0
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 5
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 4
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 3
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 2
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 1
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 0
+        }
+      ],
+      "average": 4.2,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": "in September 2023, Rishi Sunak pushed it back to 2035."
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sb_2d",
+      "text": "“We exist to end exploitation in the cocoa industry.”",
+      "itemLabel": "2d",
+      "context": "Tony’s Chocolonely (2025)",
+      "leadIn": null,
+      "question": "Gut reaction, no right answers: how much do you trust this?",
+      "sectionLabel": "B",
+      "sectionTitle": "Where we meet sustainability in the real world",
+      "isKey": false,
+      "respondentCount": 30,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 5
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 4
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 3
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 2
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 1
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 0
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 5
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 4
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 3
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 2
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 1
+        }
+      ],
+      "average": 4.3,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": "Tony’s reports much lower child labour in its long-term partner communities. The figures are its own, and the goal isn’t reached yet."
+    },
+    {
+      "kind": "section-intro",
+      "label": "C",
+      "parentLabel": null,
+      "parentTitle": null,
+      "sectionTitle": "When trust is broken",
+      "sectionPrompt": "When a promise you wanted to believe turns out to be false, gets watered down or dropped, how much do you tend to feel…",
+      "respondentCount": 30
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sc_01",
+      "text": "Angry",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When a promise you wanted to believe turns out to be false, gets watered down or dropped, how much do you tend to feel…",
+      "question": null,
+      "sectionLabel": "C",
+      "sectionTitle": "When trust is broken",
+      "isKey": false,
+      "respondentCount": 29,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 0
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 5
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 4
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 3
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 2
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 1
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 0
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 5
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 4
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 3
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 2
+        }
+      ],
+      "average": 5.1,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sc_02",
+      "text": "Disappointed",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When a promise you wanted to believe turns out to be false, gets watered down or dropped, how much do you tend to feel…",
+      "question": null,
+      "sectionLabel": "C",
+      "sectionTitle": "When trust is broken",
+      "isKey": false,
+      "respondentCount": 28,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 1
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 0
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 5
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 4
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 3
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 2
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 1
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 0
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 5
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 4
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 3
+        }
+      ],
+      "average": 5.6,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sc_03",
+      "text": "Embarrassed that I’d believed it",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When a promise you wanted to believe turns out to be false, gets watered down or dropped, how much do you tend to feel…",
+      "question": null,
+      "sectionLabel": "C",
+      "sectionTitle": "When trust is broken",
+      "isKey": false,
+      "respondentCount": 27,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 2
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 1
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 0
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 5
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 4
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 3
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 2
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 1
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 0
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 5
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 4
+        }
+      ],
+      "average": 5.6,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sc_04",
+      "text": "Powerless",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When a promise you wanted to believe turns out to be false, gets watered down or dropped, how much do you tend to feel…",
+      "question": null,
+      "sectionLabel": "C",
+      "sectionTitle": "When trust is broken",
+      "isKey": false,
+      "respondentCount": 26,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 3
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 2
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 1
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 0
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 5
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 4
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 3
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 2
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 1
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 0
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 5
+        }
+      ],
+      "average": 5.2,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sc_05",
+      "text": "A sense of loss, as if something I’d hoped for had gone",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When a promise you wanted to believe turns out to be false, gets watered down or dropped, how much do you tend to feel…",
+      "question": null,
+      "sectionLabel": "C",
+      "sectionTitle": "When trust is broken",
+      "isKey": false,
+      "respondentCount": 25,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 4
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 3
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 2
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 1
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 0
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 5
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 4
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 3
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 2
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 1
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 0
+        }
+      ],
+      "average": 4.2,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sc_06",
+      "text": "Unsurprised",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When a promise you wanted to believe turns out to be false, gets watered down or dropped, how much do you tend to feel…",
+      "question": null,
+      "sectionLabel": "C",
+      "sectionTitle": "When trust is broken",
+      "isKey": false,
+      "respondentCount": 30,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 5
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 4
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 3
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 2
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 1
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 0
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 5
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 4
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 3
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 2
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 1
+        }
+      ],
+      "average": 4.3,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sc_07",
+      "text": "Numb, as if I’d stopped caring",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When a promise you wanted to believe turns out to be false, gets watered down or dropped, how much do you tend to feel…",
+      "question": null,
+      "sectionLabel": "C",
+      "sectionTitle": "When trust is broken",
+      "isKey": false,
+      "respondentCount": 29,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 0
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 5
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 4
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 3
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 2
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 1
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 0
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 5
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 4
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 3
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 2
+        }
+      ],
+      "average": 5.1,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating-overview",
+      "sectionSortOrder": 3,
+      "sectionLabel": "C",
+      "sectionTitle": "When trust is broken",
+      "respondentCount": 30,
+      "items": [
+        {
+          "statementKey": "sc_03",
+          "text": "Embarrassed that I’d believed it",
+          "sortOrder": 3,
+          "sum": 151,
+          "n": 27,
+          "average": 5.6
+        },
+        {
+          "statementKey": "sc_02",
+          "text": "Disappointed",
+          "sortOrder": 2,
+          "sum": 156,
+          "n": 28,
+          "average": 5.6
+        },
+        {
+          "statementKey": "sc_04",
+          "text": "Powerless",
+          "sortOrder": 4,
+          "sum": 134,
+          "n": 26,
+          "average": 5.2
+        },
+        {
+          "statementKey": "sc_01",
+          "text": "Angry",
+          "sortOrder": 1,
+          "sum": 149,
+          "n": 29,
+          "average": 5.1
+        },
+        {
+          "statementKey": "sc_07",
+          "text": "Numb, as if I’d stopped caring",
+          "sortOrder": 7,
+          "sum": 149,
+          "n": 29,
+          "average": 5.1
+        },
+        {
+          "statementKey": "sc_06",
+          "text": "Unsurprised",
+          "sortOrder": 6,
+          "sum": 130,
+          "n": 30,
+          "average": 4.3
+        },
+        {
+          "statementKey": "sc_05",
+          "text": "A sense of loss, as if something I’d hoped for had gone",
+          "sortOrder": 5,
+          "sum": 105,
+          "n": 25,
+          "average": 4.2
+        }
+      ]
+    },
+    {
+      "kind": "section-intro",
+      "label": "D",
+      "parentLabel": null,
+      "parentTitle": null,
+      "sectionTitle": "How we protect ourselves",
+      "sectionPrompt": "When you hold back your trust, what’s usually behind it?",
+      "respondentCount": 30
+    },
+    {
+      "kind": "choice",
+      "choiceKind": "choice_up_to",
+      "statementKey": "sd_01",
+      "text": "When you hold back your trust, what’s usually behind it?",
+      "sectionLabel": "D",
+      "sectionTitle": "How we protect ourselves",
+      "questionNumber": 1,
+      "questionTotal": 1,
+      "choiceCount": 3,
+      "isKey": false,
+      "respondentCount": 20,
+      "options": [
+        {
+          "value": 2,
+          "label": "Promises are often vague or impossible to check",
+          "exclusive": false,
+          "count": 7,
+          "percent": 35
+        },
+        {
+          "value": 5,
+          "label": "It feels safer to expect the worst",
+          "exclusive": false,
+          "count": 7,
+          "percent": 35
+        },
+        {
+          "value": 1,
+          "label": "I’ve been let down before",
+          "exclusive": false,
+          "count": 4,
+          "percent": 20
+        },
+        {
+          "value": 4,
+          "label": "I don’t want to look naive or be taken for a fool",
+          "exclusive": false,
+          "count": 4,
+          "percent": 20
+        },
+        {
+          "value": 7,
+          "label": "I don’t usually hold back my trust",
+          "exclusive": true,
+          "count": 4,
+          "percent": 20
+        },
+        {
+          "value": 3,
+          "label": "The people making the promise gain from me believing it",
+          "exclusive": false,
+          "count": 1,
+          "percent": 5
+        },
+        {
+          "value": 6,
+          "label": "The people around me are sceptical too",
+          "exclusive": false,
+          "count": 1,
+          "percent": 5
+        }
+      ],
+      "revealText": null
+    },
+    {
+      "kind": "section-intro",
+      "label": "E",
+      "parentLabel": null,
+      "parentTitle": null,
+      "sectionTitle": "How scepticism affects me",
+      "sectionPrompt": "When you’re sceptical about the promises you hear, how much does it…",
+      "respondentCount": 30
+    },
+    {
+      "kind": "rating",
+      "statementKey": "se_01",
+      "text": "Protect me from putting hope into things that won’t deliver",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When you’re sceptical about the promises you hear, how much does it…",
+      "question": null,
+      "sectionLabel": "E",
+      "sectionTitle": "How scepticism affects me",
+      "isKey": false,
+      "respondentCount": 27,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 2
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 1
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 0
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 5
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 4
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 3
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 2
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 1
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 0
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 5
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 4
+        }
+      ],
+      "average": 5.6,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "se_02",
+      "text": "Help me see through hype and spin",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When you’re sceptical about the promises you hear, how much does it…",
+      "question": null,
+      "sectionLabel": "E",
+      "sectionTitle": "How scepticism affects me",
+      "isKey": false,
+      "respondentCount": 26,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 3
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 2
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 1
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 0
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 5
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 4
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 3
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 2
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 1
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 0
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 5
+        }
+      ],
+      "average": 5.2,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "se_03",
+      "text": "Exhaust my positive energy and sense of hope",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When you’re sceptical about the promises you hear, how much does it…",
+      "question": null,
+      "sectionLabel": "E",
+      "sectionTitle": "How scepticism affects me",
+      "isKey": false,
+      "respondentCount": 25,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 4
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 3
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 2
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 1
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 0
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 5
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 4
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 3
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 2
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 1
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 0
+        }
+      ],
+      "average": 4.2,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "se_04",
+      "text": "Make it harder to believe my work could make a difference",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When you’re sceptical about the promises you hear, how much does it…",
+      "question": null,
+      "sectionLabel": "E",
+      "sectionTitle": "How scepticism affects me",
+      "isKey": false,
+      "respondentCount": 30,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 5
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 4
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 3
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 2
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 1
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 0
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 5
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 4
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 3
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 2
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 1
+        }
+      ],
+      "average": 4.3,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "se_05",
+      "text": "Make me more determined to do things better",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "When you’re sceptical about the promises you hear, how much does it…",
+      "question": null,
+      "sectionLabel": "E",
+      "sectionTitle": "How scepticism affects me",
+      "isKey": false,
+      "respondentCount": 29,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 0
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 5
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 4
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 3
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 2
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 1
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 0
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 5
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 4
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 3
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 2
+        }
+      ],
+      "average": 5.1,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating-overview",
+      "sectionSortOrder": 5,
+      "sectionLabel": "E",
+      "sectionTitle": "How scepticism affects me",
+      "respondentCount": 30,
+      "items": [
+        {
+          "statementKey": "se_01",
+          "text": "Protect me from putting hope into things that won’t deliver",
+          "sortOrder": 1,
+          "sum": 151,
+          "n": 27,
+          "average": 5.6
+        },
+        {
+          "statementKey": "se_02",
+          "text": "Help me see through hype and spin",
+          "sortOrder": 2,
+          "sum": 134,
+          "n": 26,
+          "average": 5.2
+        },
+        {
+          "statementKey": "se_05",
+          "text": "Make me more determined to do things better",
+          "sortOrder": 5,
+          "sum": 149,
+          "n": 29,
+          "average": 5.1
+        },
+        {
+          "statementKey": "se_04",
+          "text": "Make it harder to believe my work could make a difference",
+          "sortOrder": 4,
+          "sum": 130,
+          "n": 30,
+          "average": 4.3
+        },
+        {
+          "statementKey": "se_03",
+          "text": "Exhaust my positive energy and sense of hope",
+          "sortOrder": 3,
+          "sum": 105,
+          "n": 25,
+          "average": 4.2
+        }
+      ]
+    },
+    {
+      "kind": "section-intro",
+      "label": "F",
+      "parentLabel": null,
+      "parentTitle": null,
+      "sectionTitle": "Hope and trust",
+      "sectionPrompt": "If you could, how much would you like to be able to believe…",
+      "respondentCount": 30
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sf_01",
+      "text": "…your own judgement about what’s real and what’s hype",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "If you could, how much would you like to be able to believe…",
+      "question": null,
+      "sectionLabel": "F",
+      "sectionTitle": "Hope and trust",
+      "isKey": false,
+      "respondentCount": 28,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 1
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 0
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 5
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 4
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 3
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 2
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 1
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 0
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 5
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 4
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 3
+        }
+      ],
+      "average": 5.6,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sf_02",
+      "text": "…that change is genuinely possible",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "If you could, how much would you like to be able to believe…",
+      "question": null,
+      "sectionLabel": "F",
+      "sectionTitle": "Hope and trust",
+      "isKey": false,
+      "respondentCount": 27,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 2
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 1
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 0
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 5
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 4
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 3
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 2
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 1
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 0
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 5
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 4
+        }
+      ],
+      "average": 5.6,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sf_03",
+      "text": "…that your effort will be worth it",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "If you could, how much would you like to be able to believe…",
+      "question": null,
+      "sectionLabel": "F",
+      "sectionTitle": "Hope and trust",
+      "isKey": false,
+      "respondentCount": 26,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 3
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 2
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 1
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 0
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 5
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 4
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 3
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 2
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 1
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 0
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 5
+        }
+      ],
+      "average": 5.2,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sf_04",
+      "text": "…that others care as much as you do",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "If you could, how much would you like to be able to believe…",
+      "question": null,
+      "sectionLabel": "F",
+      "sectionTitle": "Hope and trust",
+      "isKey": false,
+      "respondentCount": 25,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 4
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 3
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 2
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 1
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 0
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 5
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 4
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 3
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 2
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 1
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 0
+        }
+      ],
+      "average": 4.2,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "rating",
+      "statementKey": "sf_05",
+      "text": "…that you won’t be alone in trying",
+      "itemLabel": null,
+      "context": null,
+      "leadIn": "If you could, how much would you like to be able to believe…",
+      "question": null,
+      "sectionLabel": "F",
+      "sectionTitle": "Hope and trust",
+      "isKey": false,
+      "respondentCount": 30,
+      "options": [
+        {
+          "value": 0,
+          "label": "0",
+          "count": 5
+        },
+        {
+          "value": 1,
+          "label": "1",
+          "count": 4
+        },
+        {
+          "value": 2,
+          "label": "2",
+          "count": 3
+        },
+        {
+          "value": 3,
+          "label": "3",
+          "count": 2
+        },
+        {
+          "value": 4,
+          "label": "4",
+          "count": 1
+        },
+        {
+          "value": 5,
+          "label": "5",
+          "count": 0
+        },
+        {
+          "value": 6,
+          "label": "6",
+          "count": 5
+        },
+        {
+          "value": 7,
+          "label": "7",
+          "count": 4
+        },
+        {
+          "value": 8,
+          "label": "8",
+          "count": 3
+        },
+        {
+          "value": 9,
+          "label": "9",
+          "count": 2
+        },
+        {
+          "value": 10,
+          "label": "10",
+          "count": 1
+        }
+      ],
+      "average": 4.3,
+      "leftLabel": "Not at all",
+      "rightLabel": "Completely",
+      "revealText": null
+    },
+    {
+      "kind": "choice",
+      "choiceKind": "choice_one",
+      "statementKey": "sf_06",
+      "text": "Which is closest to where you are right now?",
+      "sectionLabel": "F",
+      "sectionTitle": "Hope and trust",
+      "questionNumber": 6,
+      "questionTotal": 7,
+      "choiceCount": null,
+      "isKey": false,
+      "respondentCount": 20,
+      "options": [
+        {
+          "value": 1,
+          "label": "I’m hopeful, and ready to be part of the change",
+          "exclusive": false,
+          "count": 6,
+          "percent": 30
+        },
+        {
+          "value": 4,
+          "label": "I’m protecting myself by not hoping too much",
+          "exclusive": false,
+          "count": 6,
+          "percent": 30
+        },
+        {
+          "value": 3,
+          "label": "My hope comes and goes",
+          "exclusive": false,
+          "count": 3,
+          "percent": 15
+        },
+        {
+          "value": 6,
+          "label": "I’m not sure",
+          "exclusive": false,
+          "count": 3,
+          "percent": 15
+        },
+        {
+          "value": 2,
+          "label": "I want to hope, but broken trust makes it hard",
+          "exclusive": false,
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "value": 5,
+          "label": "I’ve mostly given up on it, at least for now",
+          "exclusive": false,
+          "count": 0,
+          "percent": 0
+        }
+      ],
+      "revealText": null
+    },
+    {
+      "kind": "two-ended",
+      "statementKey": "sf_07",
+      "text": "Where do you think most people in this room are right now?",
+      "sectionLabel": "F",
+      "sectionTitle": "Hope and trust",
+      "isKey": false,
+      "respondentCount": 15,
+      "leftLabel": "Mostly given up on it",
+      "rightLabel": "Hopeful, and ready to be part of the change",
+      "average": 49.9,
+      "buckets": [
+        {
+          "from": 0,
+          "to": 9,
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "from": 10,
+          "to": 19,
+          "count": 3,
+          "percent": 20
+        },
+        {
+          "from": 20,
+          "to": 29,
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "from": 30,
+          "to": 39,
+          "count": 4,
+          "percent": 27
+        },
+        {
+          "from": 40,
+          "to": 49,
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "from": 50,
+          "to": 59,
+          "count": 4,
+          "percent": 27
+        },
+        {
+          "from": 60,
+          "to": 69,
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "from": 70,
+          "to": 79,
+          "count": 2,
+          "percent": 13
+        },
+        {
+          "from": 80,
+          "to": 89,
+          "count": 0,
+          "percent": 0
+        },
+        {
+          "from": 90,
+          "to": 100,
+          "count": 2,
+          "percent": 13
+        }
+      ],
+      "revealText": null
+    }
+  ],
+  "steps": [
+    {
+      "slideIndex": 0,
+      "revealed": true
+    },
+    {
+      "slideIndex": 1,
+      "revealed": true
+    },
+    {
+      "slideIndex": 2,
+      "revealed": true
+    },
+    {
+      "slideIndex": 3,
+      "revealed": true
+    },
+    {
+      "slideIndex": 4,
+      "revealed": true
+    },
+    {
+      "slideIndex": 5,
+      "revealed": true
+    },
+    {
+      "slideIndex": 6,
+      "revealed": true
+    },
+    {
+      "slideIndex": 7,
+      "revealed": true
+    },
+    {
+      "slideIndex": 8,
+      "revealed": true
+    },
+    {
+      "slideIndex": 9,
+      "revealed": true
+    },
+    {
+      "slideIndex": 10,
+      "revealed": false
+    },
+    {
+      "slideIndex": 10,
+      "revealed": true
+    },
+    {
+      "slideIndex": 11,
+      "revealed": true
+    },
+    {
+      "slideIndex": 12,
+      "revealed": false
+    },
+    {
+      "slideIndex": 12,
+      "revealed": true
+    },
+    {
+      "slideIndex": 13,
+      "revealed": false
+    },
+    {
+      "slideIndex": 13,
+      "revealed": true
+    },
+    {
+      "slideIndex": 14,
+      "revealed": false
+    },
+    {
+      "slideIndex": 14,
+      "revealed": true
+    },
+    {
+      "slideIndex": 15,
+      "revealed": false
+    },
+    {
+      "slideIndex": 15,
+      "revealed": true
+    },
+    {
+      "slideIndex": 16,
+      "revealed": true
+    },
+    {
+      "slideIndex": 17,
+      "revealed": false
+    },
+    {
+      "slideIndex": 17,
+      "revealed": true
+    },
+    {
+      "slideIndex": 18,
+      "revealed": false
+    },
+    {
+      "slideIndex": 18,
+      "revealed": true
+    },
+    {
+      "slideIndex": 19,
+      "revealed": false
+    },
+    {
+      "slideIndex": 19,
+      "revealed": true
+    },
+    {
+      "slideIndex": 20,
+      "revealed": false
+    },
+    {
+      "slideIndex": 20,
+      "revealed": true
+    },
+    {
+      "slideIndex": 21,
+      "revealed": false
+    },
+    {
+      "slideIndex": 21,
+      "revealed": true
+    },
+    {
+      "slideIndex": 22,
+      "revealed": false
+    },
+    {
+      "slideIndex": 22,
+      "revealed": true
+    },
+    {
+      "slideIndex": 23,
+      "revealed": false
+    },
+    {
+      "slideIndex": 23,
+      "revealed": true
+    },
+    {
+      "slideIndex": 24,
+      "revealed": false
+    },
+    {
+      "slideIndex": 24,
+      "revealed": true
+    },
+    {
+      "slideIndex": 25,
+      "revealed": true
+    },
+    {
+      "slideIndex": 26,
+      "revealed": false
+    },
+    {
+      "slideIndex": 26,
+      "revealed": true
+    },
+    {
+      "slideIndex": 27,
+      "revealed": true
+    },
+    {
+      "slideIndex": 28,
+      "revealed": false
+    },
+    {
+      "slideIndex": 28,
+      "revealed": true
+    },
+    {
+      "slideIndex": 29,
+      "revealed": false
+    },
+    {
+      "slideIndex": 29,
+      "revealed": true
+    },
+    {
+      "slideIndex": 30,
+      "revealed": false
+    },
+    {
+      "slideIndex": 30,
+      "revealed": true
+    },
+    {
+      "slideIndex": 31,
+      "revealed": false
+    },
+    {
+      "slideIndex": 31,
+      "revealed": true
+    },
+    {
+      "slideIndex": 32,
+      "revealed": false
+    },
+    {
+      "slideIndex": 32,
+      "revealed": true
+    },
+    {
+      "slideIndex": 33,
+      "revealed": false
+    },
+    {
+      "slideIndex": 33,
+      "revealed": true
+    },
+    {
+      "slideIndex": 34,
+      "revealed": true
+    },
+    {
+      "slideIndex": 35,
+      "revealed": false
+    },
+    {
+      "slideIndex": 35,
+      "revealed": true
+    },
+    {
+      "slideIndex": 36,
+      "revealed": false
+    },
+    {
+      "slideIndex": 36,
+      "revealed": true
+    },
+    {
+      "slideIndex": 37,
+      "revealed": false
+    },
+    {
+      "slideIndex": 37,
+      "revealed": true
+    },
+    {
+      "slideIndex": 38,
+      "revealed": false
+    },
+    {
+      "slideIndex": 38,
+      "revealed": true
+    },
+    {
+      "slideIndex": 39,
+      "revealed": false
+    },
+    {
+      "slideIndex": 39,
+      "revealed": true
+    },
+    {
+      "slideIndex": 40,
+      "revealed": false
+    },
+    {
+      "slideIndex": 40,
+      "revealed": true
+    },
+    {
+      "slideIndex": 41,
+      "revealed": false
+    },
+    {
+      "slideIndex": 41,
+      "revealed": true
+    }
+  ],
+  "headings": [
+    null,
+    {
+      "label": "A",
+      "title": "Existing knowledge and understanding",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "A",
+      "title": "Existing knowledge and understanding",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "A",
+      "title": "Existing knowledge and understanding",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "A",
+      "title": "Existing knowledge and understanding",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "A",
+      "title": "Existing knowledge and understanding",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "A",
+      "title": "Existing knowledge and understanding",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "A",
+      "title": "Existing knowledge and understanding",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "A",
+      "title": "Existing knowledge and understanding",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "A",
+      "title": "Existing knowledge and understanding",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "A",
+      "title": "Existing knowledge and understanding",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "B",
+      "title": "Where we meet sustainability in the real world",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "B",
+      "title": "Where we meet sustainability in the real world",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "B",
+      "title": "Where we meet sustainability in the real world",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "B",
+      "title": "Where we meet sustainability in the real world",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "B",
+      "title": "Where we meet sustainability in the real world",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "C",
+      "title": "When trust is broken",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "C",
+      "title": "When trust is broken",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "C",
+      "title": "When trust is broken",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "C",
+      "title": "When trust is broken",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "C",
+      "title": "When trust is broken",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "C",
+      "title": "When trust is broken",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "C",
+      "title": "When trust is broken",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "C",
+      "title": "When trust is broken",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "C",
+      "title": "When trust is broken",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "D",
+      "title": "How we protect ourselves",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "D",
+      "title": "How we protect ourselves",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "E",
+      "title": "How scepticism affects me",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "E",
+      "title": "How scepticism affects me",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "E",
+      "title": "How scepticism affects me",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "E",
+      "title": "How scepticism affects me",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "E",
+      "title": "How scepticism affects me",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "E",
+      "title": "How scepticism affects me",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "E",
+      "title": "How scepticism affects me",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "F",
+      "title": "Hope and trust",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "F",
+      "title": "Hope and trust",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "F",
+      "title": "Hope and trust",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "F",
+      "title": "Hope and trust",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "F",
+      "title": "Hope and trust",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "F",
+      "title": "Hope and trust",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "F",
+      "title": "Hope and trust",
+      "parentLabel": null,
+      "parentTitle": null
+    },
+    {
+      "label": "F",
+      "title": "Hope and trust",
+      "parentLabel": null,
+      "parentTitle": null
+    }
+  ],
+  "csvWithConsent": "email,started_at,submitted_at,results_opt_in,results_opt_in_at,sa_01,sa_02,sa_04,sa_05,sa_07,sa_08,sa_09,sa_10,sb_2a,sb_2b,sb_2c,sb_2d,sc_01,sc_02,sc_03,sc_04,sc_05,sc_06,sc_07,sd_01,se_01,se_02,se_03,se_04,se_05,sf_01,sf_02,sf_03,sf_04,sf_05,sf_06,sf_07\r\np01@example.test,2026-10-19T10:00:00.000Z,2026-10-19T10:30:00.000Z,yes,2026-10-19T10:10:00.000Z,1,2,3,4,,2,3,4,8,,10,0,1,2,,4,5,6,7,,9,10,0,1,,3,4,5,6,,1,15\r\np02@example.test,2026-10-19T10:01:00.000Z,2026-10-19T10:31:00.000Z,no,,2,3,4,,2,3,4,1,,1,2,3,4,,6,7,8,9,,Promises are often vague or impossible to check; I don’t want to look naive or be taken for a fool,1,2,3,,5,6,7,8,,10,2,26\r\np03@example.test,2026-10-19T10:02:00.000Z,,yes,2026-10-19T10:12:00.000Z,3,4,,2,3,4,1,,3,4,5,6,,8,9,10,0,,2,The people making the promise gain from me believing it; It feels safer to expect the worst,4,5,,7,8,9,10,,1,2,3,37\r\n",
+  "csvWithoutConsent": "email,started_at,submitted_at,sa_01,sa_02,sa_04,sa_05,sa_07,sa_08,sa_09,sa_10,sb_2a,sb_2b,sb_2c,sb_2d,sc_01,sc_02,sc_03,sc_04,sc_05,sc_06,sc_07,sd_01,se_01,se_02,se_03,se_04,se_05,sf_01,sf_02,sf_03,sf_04,sf_05,sf_06,sf_07\r\np01@example.test,2026-10-19T10:00:00.000Z,2026-10-19T10:30:00.000Z,1,2,3,4,,2,3,4,8,,10,0,1,2,,4,5,6,7,,9,10,0,1,,3,4,5,6,,1,15\r\np02@example.test,2026-10-19T10:01:00.000Z,2026-10-19T10:31:00.000Z,2,3,4,,2,3,4,1,,1,2,3,4,,6,7,8,9,,Promises are often vague or impossible to check; I don’t want to look naive or be taken for a fool,1,2,3,,5,6,7,8,,10,2,26\r\np03@example.test,2026-10-19T10:02:00.000Z,,3,4,,2,3,4,1,,3,4,5,6,,8,9,10,0,,2,The people making the promise gain from me believing it; It feels safer to expect the worst,4,5,,7,8,9,10,,1,2,3,37\r\n"
+}

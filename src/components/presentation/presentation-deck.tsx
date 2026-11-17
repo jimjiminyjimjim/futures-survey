@@ -24,6 +24,7 @@ function hasSectionLabel(slide: Slide): slide is SlideWithSection {
     slide.kind === "statement" ||
     slide.kind === "choice" ||
     slide.kind === "rating" ||
+    slide.kind === "ranking" ||
     slide.kind === "two-ended"
   );
 }
@@ -65,7 +66,19 @@ function isInsideClickControl(target: EventTarget | null): boolean {
   );
 }
 
-export function PresentationDeck({ slides }: { slides: Slide[] }) {
+/**
+ * `notice` (quick task 261117-it4): a high-contrast badge at the right end
+ * of the persistent header row, which renders on every step, so the label
+ * is on every slide. Used for an unopened draft's test answers. With no
+ * notice the markup is unchanged.
+ */
+export function PresentationDeck({
+  slides,
+  notice = null,
+}: {
+  slides: Slide[];
+  notice?: string | null;
+}) {
   const steps = useMemo(() => buildDeckSteps(slides), [slides]);
   const headings = useMemo(() => buildSectionHeadings(slides), [slides]);
   const [stepIndex, setStepIndex] = useState(0);
@@ -169,6 +182,14 @@ export function PresentationDeck({ slides }: { slides: Slide[] }) {
               {hasSectionLabel(current) && current.isKey ? <KeyQuestionTag /> : null}
             </div>
           </div>
+        ) : null}
+        {notice ? (
+          <p
+            data-slot="deck-notice"
+            className="ml-auto shrink-0 rounded-md bg-amber-300 px-3 py-1.5 text-[17px] leading-tight font-semibold text-black"
+          >
+            {notice}
+          </p>
         ) : null}
       </div>
 

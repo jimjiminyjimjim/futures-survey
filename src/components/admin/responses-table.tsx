@@ -16,19 +16,10 @@ import {
 import { formatAdminDateTime } from "@/lib/admin/datetime";
 import { ADMIN_MESSAGES } from "@/lib/admin/messages";
 import type { RoundResponsesStatement } from "@/lib/admin/responses-queries";
-import type { ParticipantResponse } from "@/lib/admin/responses";
-import { isListKind } from "@/lib/survey/answer-rules";
-
-/** True when the participant has an answer for this statement, any kind. */
-function hasParticipantAnswer(
-  participant: ParticipantResponse,
-  statement: RoundResponsesStatement
-): boolean {
-  if (isListKind(statement.kind)) {
-    return (participant.choiceAnswers?.[statement.key]?.length ?? 0) > 0;
-  }
-  return participant.answers[statement.key] !== undefined;
-}
+import {
+  hasParticipantAnswer,
+  type ParticipantResponse,
+} from "@/lib/admin/responses";
 
 /**
  * ADM-02's participant table: email filter and status/started/submitted/

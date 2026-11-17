@@ -1,3 +1,5 @@
+import { storesChoiceValues, type QuestionKind } from "@/lib/survey/answer-rules";
+
 /**
  * Pure helpers for ADM-02/ADM-03's participant responses view — no server
  * imports, no DB access. Mirrors the long-row shape the migration
@@ -11,7 +13,8 @@ export type AdminResponseRow = {
   submitted_at: string | null;
   statement_key: string | null;
   value: number | null;
-  /** choice_multi / choice_exact / choice_up_to picks; value is null then. */
+  /** choice_multi / choice_exact / choice_up_to picks, or a ranking in rank
+   * order (index 0 = most important); value is null then. */
   choice_values?: number[] | null;
   /** 261018-qck: results opt-in, repeated on every row for a response. */
   results_opted_in?: boolean;
@@ -24,7 +27,7 @@ export type ParticipantResponse = {
   startedAt: string;
   submittedAt: string | null;
   answers: Record<string, number>;
-  /** statement key -> picks, for choice_multi / choice_exact / choice_up_to answers (only present when there are any). */
+  /** statement key -> picks, for choice_multi / choice_exact / choice_up_to answers and rankings (a ranking is in rank order; only present when there are any). */
   choiceAnswers?: Record<string, number[]>;
   answeredCount: number;
   /** Optional so pre-261018-qck fixtures keep typechecking. */
@@ -76,4 +79,16 @@ export function pivotResponses(rows: AdminResponseRow[]): ParticipantResponse[] 
   return [...byResponseId.values()].sort((a, b) =>
     a.email < b.email ? -1 : a.email > b.email ? 1 : 0
   );
+}
+
+/** True when the participant has an answer for this statement, any kind
+ * (a non-empty list or ranking, or a value). */
+export function hasParticipantAnswer(
+  participant: ParticipantResponse,
+  statement: { key: string; kind: QuestionKind }
+): boolean {
+  if (storesChoiceValues(statement.kind)) {
+    return (participant.choiceAnswers?.[statement.key]?.length ?? 0) > 0;
+  }
+  return participant.answers[statement.key] !== undefined;
 }

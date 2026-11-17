@@ -1,6 +1,11 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import type { PresentationInput, PresentationStatement } from "./types";
+import { isUnopenedDraft } from "@/lib/unopened-draft";
+import {
+  isPresentationScaleKey,
+  type PresentationInput,
+  type PresentationStatement,
+} from "./types";
 
 // Surveys v2 Part C: this loader is intentionally self-contained and
 // does NOT import from src/lib/admin/** (that tree is owned by Part B,
@@ -14,6 +19,8 @@ type AdminListRoundsRow = {
   id: string;
   round_number: number;
   title: string;
+  opens_at: string | null;
+  closes_at: string | null;
   submitted_count: number | string;
 };
 
@@ -45,6 +52,17 @@ type PredictionStatsRow = {
   actual_respondent_count: number | string;
   actual_agree_count: number | string;
   actual_agree_percent: number | string | null;
+};
+
+type RankStatsRow = {
+  statement_id: string;
+  statement_key: string;
+  value: number | string;
+  label: string;
+  respondent_count: number | string;
+  ranked_count: number | string;
+  rank_sum: number | string;
+  first_count: number | string;
 };
 
 type ScaleOptionRow = {
@@ -84,9 +102,18 @@ type SectionWithStatementsRow = {
   statements: StatementRow[] | null;
 };
 
+/**
+ * `isUnopenedDraft` (quick task 261117-it4): the round has no open date and
+ * no close date, so every answer in the deck is an admin test answer and
+ * the deck says so. Known on a load failure too once the round row loaded.
+ */
 export type GetPresentationDataResult =
-  | { ok: true; input: PresentationInput }
-  | { ok: false; reason: "not_found" | "load_failed" };
+  | { ok: true; input: PresentationInput; isUnopenedDraft: boolean }
+  | {
+      ok: false;
+      reason: "not_found" | "load_failed";
+      isUnopenedDraft?: boolean;
+    };
 
 /**
  * Server-only. Loads everything the presentation deck needs for one
@@ -94,8 +121,9 @@ export type GetPresentationDataResult =
  * statements (every v2 column, plus show_overview), scale_options, and
  * three identity-free admin aggregates under the caller's own admin JWT —
  * admin_statement_answer_counts (scale), admin_statement_choice_counts
- * (choice_one/choice_multi/choice_exact) and admin_prediction_stats.
- * Never reads an identity-bearing table or function.
+ * (choice_one/choice_multi/choice_exact) and admin_prediction_stats — plus
+ * admin_statement_rank_stats, called only when the round has ranking
+ * statements. Never reads an identity-bearing table or function.
  */
 export async function getPresentationData(
   roundId: string
@@ -135,43 +163,72 @@ export async function getPresentationData(
   if (!roundRow) {
     return { ok: false, reason: "not_found" };
   }
+  const draft = isUnopenedDraft(roundRow.opens_at, roundRow.closes_at);
 
   if (sectionsResult.error) {
     console.error("getPresentationData: sections", {
       code: sectionsResult.error.code,
     });
-    return { ok: false, reason: "load_failed" };
+    return { ok: false, reason: "load_failed", isUnopenedDraft: draft };
   }
   if (scaleOptionsResult.error) {
     console.error("scale_options", { code: scaleOptionsResult.error.code });
-    return { ok: false, reason: "load_failed" };
+    return { ok: false, reason: "load_failed", isUnopenedDraft: draft };
   }
   if (countsResult.error) {
     console.error("admin_statement_answer_counts", {
       code: countsResult.error.code,
     });
-    return { ok: false, reason: "load_failed" };
+    return { ok: false, reason: "load_failed", isUnopenedDraft: draft };
   }
   if (choiceCountsResult.error) {
     console.error("admin_statement_choice_counts", {
       code: choiceCountsResult.error.code,
     });
-    return { ok: false, reason: "load_failed" };
+    return { ok: false, reason: "load_failed", isUnopenedDraft: draft };
   }
   if (predictionStatsResult.error) {
     console.error("admin_prediction_stats", {
       code: predictionStatsResult.error.code,
     });
-    return { ok: false, reason: "load_failed" };
+    return { ok: false, reason: "load_failed", isUnopenedDraft: draft };
   }
 
   const sectionRows = (sectionsResult.data ?? []) as SectionWithStatementsRow[];
 
   for (const section of sectionRows) {
-    if (section.scale_key !== "agreement" && section.scale_key !== "familiarity") {
+    if (!isPresentationScaleKey(section.scale_key)) {
       console.error("presentation_unknown_scale");
-      return { ok: false, reason: "load_failed" };
+      return { ok: false, reason: "load_failed", isUnopenedDraft: draft };
     }
+  }
+
+  // The ranking aggregate RPC is only called for a round that actually has
+  // ranking statements, so a round without them (Session 1) never depends
+  // on it — the deck loads even if the ranking migration is not applied yet.
+  const hasRanking = sectionRows.some((section) =>
+    (section.statements ?? []).some((st) => st.kind === "ranking")
+  );
+  let rankStats: PresentationInput["rankStats"] | undefined;
+  if (hasRanking) {
+    const rankStatsResult = await supabase.rpc("admin_statement_rank_stats", {
+      p_round_id: roundId,
+    });
+    if (rankStatsResult.error) {
+      console.error("admin_statement_rank_stats", {
+        code: rankStatsResult.error.code,
+      });
+      return { ok: false, reason: "load_failed", isUnopenedDraft: draft };
+    }
+    rankStats = ((rankStatsResult.data ?? []) as RankStatsRow[]).map((row) => ({
+      statementId: row.statement_id,
+      value: Number(row.value),
+      label: row.label,
+      respondentCount: Number(row.respondent_count),
+      rankedCount: Number(row.ranked_count),
+      rankSum: Number(row.rank_sum),
+      firstCount: Number(row.first_count),
+    }));
   }
 
   const toStatement = (row: StatementRow): PresentationStatement => ({
@@ -260,7 +317,8 @@ export async function getPresentationData(
     counts,
     choiceCounts,
     predictionStats,
+    ...(rankStats ? { rankStats } : {}),
   };
 
-  return { ok: true, input };
+  return { ok: true, input, isUnopenedDraft: draft };
 }

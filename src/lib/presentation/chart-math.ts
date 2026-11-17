@@ -249,3 +249,97 @@ export function rankByExplainPercent<T extends ExplainTerm>(terms: T[]): T[] {
     return a.sortOrder - b.sortOrder;
   });
 }
+
+/** 1 dp mean rank (1 = most important), or null when nobody ranked the
+ * item. */
+export function meanRank(rankSum: number, rankedCount: number): number | null {
+  if (rankedCount === 0) {
+    return null;
+  }
+  return Math.round((rankSum / rankedCount) * 10) / 10;
+}
+
+/** Borda-style points: itemCount * rankedCount - rankSum. A first place
+ * earns itemCount - 1 points, a last place 0, so higher is better. */
+export function rankPoints(
+  rankSum: number,
+  rankedCount: number,
+  itemCount: number
+): number {
+  return itemCount * rankedCount - rankSum;
+}
+
+/** points rescaled to 0..100 (half-up): 100 when everyone ranked the item
+ * first, 0 when everyone ranked it last. 0 when nobody ranked it or there
+ * are fewer than two items. */
+export function rankScorePercent(
+  rankSum: number,
+  rankedCount: number,
+  itemCount: number
+): number {
+  if (rankedCount === 0 || itemCount <= 1) {
+    return 0;
+  }
+  return Math.round(
+    (100 * rankPoints(rankSum, rankedCount, itemCount)) /
+      ((itemCount - 1) * rankedCount)
+  );
+}
+
+export type RankableItem = {
+  value: number;
+  rankSum: number;
+  rankedCount: number;
+  firstCount: number;
+};
+
+/**
+ * Orders ranking items best first: lower mean rank first, compared by exact
+ * cross-multiplication (a.rankSum * b.rankedCount vs b.rankSum *
+ * a.rankedCount) so equal means are never nudged apart by floating point.
+ * Ties go to the higher firstCount, then the lower option value. Items
+ * nobody ranked go last. Returns a stable copy.
+ */
+export function rankByMeanRank<T extends RankableItem>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const aZero = a.rankedCount === 0;
+    const bZero = b.rankedCount === 0;
+    if (aZero !== bZero) {
+      return aZero ? 1 : -1;
+    }
+    if (!aZero) {
+      const cross = a.rankSum * b.rankedCount - b.rankSum * a.rankedCount;
+      if (cross !== 0) {
+        return cross;
+      }
+    }
+    if (a.firstCount !== b.firstCount) {
+      return b.firstCount - a.firstCount;
+    }
+    return a.value - b.value;
+  });
+}
+
+/**
+ * Position numbers for items already ordered by rankByMeanRank. Exactly tied
+ * items (the same mean rank by exact cross-multiplication AND the same
+ * first-place count) share a position, and the next distinct item skips the
+ * tied places: 1, 1, 3. Items nobody ranked tie with each other.
+ */
+export function rankPositions(sorted: RankableItem[]): number[] {
+  const positions: number[] = [];
+  sorted.forEach((item, i) => {
+    const previous = sorted[i - 1];
+    const tied =
+      previous !== undefined &&
+      previous.firstCount === item.firstCount &&
+      (previous.rankedCount === 0 && item.rankedCount === 0
+        ? true
+        : previous.rankedCount > 0 &&
+          item.rankedCount > 0 &&
+          previous.rankSum * item.rankedCount ===
+            item.rankSum * previous.rankedCount);
+    positions.push(tied ? positions[i - 1] : i + 1);
+  });
+  return positions;
+}

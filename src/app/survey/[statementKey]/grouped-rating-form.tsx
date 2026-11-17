@@ -4,6 +4,7 @@ import { useCallback, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveAnswer } from "@/lib/survey/actions";
 import { SURVEY_MESSAGES } from "@/lib/survey/messages";
+import { useSurveyMode } from "@/components/survey/survey-mode";
 import { QuestionButtons, QuestionError } from "./question-controls";
 import { RatingScale } from "./rating-scale";
 
@@ -43,6 +44,7 @@ export function GroupedRatingForm({
   nextHref: string;
 }) {
   const router = useRouter();
+  const { testRoundId, homeHref } = useSurveyMode();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -85,10 +87,18 @@ export function GroupedRatingForm({
           if (current === "" || current === lastSavedRef.current[row.statementId]) {
             continue;
           }
-          const result = await saveAnswer({
-            statementId: row.statementId,
-            value: Number(current),
-          });
+          const result = await saveAnswer(
+            testRoundId
+              ? {
+                  statementId: row.statementId,
+                  value: Number(current),
+                  testRoundId,
+                }
+              : {
+                  statementId: row.statementId,
+                  value: Number(current),
+                }
+          );
 
           if (result.ok) {
             lastSavedRef.current = {
@@ -99,7 +109,7 @@ export function GroupedRatingForm({
           }
 
           if (result.reason === "not-open") {
-            router.replace("/");
+            router.replace(homeHref);
             return;
           }
 
@@ -118,7 +128,7 @@ export function GroupedRatingForm({
         setError(SURVEY_MESSAGES.saveFailed);
       }
     });
-  }, [isPending, rows, values, router, nextHref]);
+  }, [isPending, rows, values, router, nextHref, testRoundId, homeHref]);
 
   return (
     <div className="flex flex-col gap-8">

@@ -1,7 +1,12 @@
 import { connection } from "next/server";
 import { getSignedInUser, isCurrentUserAdmin } from "@/lib/auth/session";
 import { getSurveySnapshot } from "@/lib/survey/queries";
-import { partLabel, partAndQuestionsLabel } from "@/lib/survey/state";
+import {
+  partLabel,
+  partAndQuestionsLabel,
+  buildSectionSummaries,
+  countQuestions,
+} from "@/lib/survey/state";
 import { ParticipantHeader } from "@/components/participant-header";
 
 // No visible menu bar on /survey pages — full-bleed black background
@@ -36,7 +41,7 @@ export default async function SurveyLayout({
             : partAndQuestionsLabel(
                 snapshot.openRound.partNumber,
                 snapshot.openRound.totalParts,
-                new Set(snapshot.statements.map((s) => s.sectionId)).size
+                countQuestions(buildSectionSummaries(snapshot.statements))
               ),
         }
       : null;

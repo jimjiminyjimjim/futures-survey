@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { saveAnswer } from "@/lib/survey/actions";
 import { SURVEY_MESSAGES } from "@/lib/survey/messages";
+import { useSurveyMode } from "@/components/survey/survey-mode";
 
 export type QuestionNavProps = {
   statementId: string;
@@ -28,6 +29,7 @@ export function useSaveAndAdvance({
   nextHref,
 }: QuestionNavProps) {
   const router = useRouter();
+  const { testRoundId, homeHref } = useSurveyMode();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +54,11 @@ export function useSaveAndAdvance({
       setError(null);
       startTransition(async () => {
         try {
-          const result = await saveAnswer({ statementId, ...payload });
+          const result = await saveAnswer(
+            testRoundId
+              ? { statementId, ...payload, testRoundId }
+              : { statementId, ...payload }
+          );
 
           if (result.ok) {
             onSaved();
@@ -61,7 +67,7 @@ export function useSaveAndAdvance({
           }
 
           if (result.reason === "not-open") {
-            router.replace("/");
+            router.replace(homeHref);
             return;
           }
 
@@ -75,7 +81,7 @@ export function useSaveAndAdvance({
         }
       });
     },
-    [router, statementId, nextHref]
+    [router, statementId, nextHref, testRoundId, homeHref]
   );
 
   return { isPending, error, setError, goPrev, goNext, save };

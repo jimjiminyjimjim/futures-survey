@@ -43,7 +43,15 @@ export default async function PresentRoundPage({
 
   if (!result.ok) {
     return (
-      <div className="dark fixed inset-0 z-50 flex flex-col items-center justify-center bg-pres-page px-16 text-pres-ink">
+      <div className="dark fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-pres-page px-16 text-pres-ink">
+        {result.isUnopenedDraft ? (
+          <p
+            data-slot="deck-notice"
+            className="rounded-md bg-amber-300 px-3 py-1.5 text-[17px] leading-tight font-semibold text-black"
+          >
+            {PRESENTATION_MESSAGES.testAnswersLabel}
+          </p>
+        ) : null}
         <p role="alert" className="text-[28px] font-normal">
           {PRESENTATION_MESSAGES.loadFailed}
         </p>
@@ -53,5 +61,14 @@ export default async function PresentRoundPage({
 
   const { slides } = buildSlides(result.input);
 
-  return <PresentationDeck slides={slides} />;
+  // Quick task 261117-it4: an unopened draft's answers are all admin test
+  // answers, so the deck labels every slide.
+  return (
+    <PresentationDeck
+      slides={slides}
+      notice={
+        result.isUnopenedDraft ? PRESENTATION_MESSAGES.testAnswersLabel : null
+      }
+    />
+  );
 }

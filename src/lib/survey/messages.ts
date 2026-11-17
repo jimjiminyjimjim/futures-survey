@@ -100,6 +100,17 @@ export const SURVEY_MESSAGES = {
   resultsWithdrawn: "You've withdrawn your agreement.",
   resultsConsentFailed:
     "We couldn't save your choice. Check your connection and try again.",
+  /** ranking helper text, shown above the list. */
+  rankingHint:
+    "Tap each item in order of importance, starting with the most important. Tap a numbered item again to remove it.",
+  /** ranking progress, e.g. "2 of 6 ranked". */
+  rankingProgress: (ranked: number, total: number) =>
+    `${ranked} of ${total} ranked`,
+  rankingItemRanked: (label: string, rank: number, total: number) =>
+    `${label}, ranked ${rank} of ${total}`,
+  rankingItemUnranked: (label: string) => `${label}, not ranked yet`,
+  rankingMoveUp: (label: string) => `Move ${label} up`,
+  rankingMoveDown: (label: string) => `Move ${label} down`,
   /** "About this session" dialog trigger, shown on every /survey page. */
   sessionIntroOpen: "About this session",
 } as const;

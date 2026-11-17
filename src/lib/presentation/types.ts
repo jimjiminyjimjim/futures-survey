@@ -12,7 +12,22 @@ export type StatementKind =
   | "prediction"
   | "rating"
   | "two_ended"
-  | "choice_up_to";
+  | "choice_up_to"
+  | "ranking";
+
+/** Scale keys a section may use in presentation mode. importance_change
+ * (Session 2's B2) renders as ordinary statement slides. */
+export const PRESENTATION_SCALE_KEYS = [
+  "agreement",
+  "familiarity",
+  "importance_change",
+] as const;
+
+export type PresentationScaleKey = (typeof PRESENTATION_SCALE_KEYS)[number];
+
+export function isPresentationScaleKey(key: string): key is PresentationScaleKey {
+  return (PRESENTATION_SCALE_KEYS as readonly string[]).includes(key);
+}
 
 export type OptionCount = {
   value: number;
@@ -69,6 +84,31 @@ export type RatingOverviewItem = {
   average: number | null;
 };
 
+/**
+ * One option of a ranking statement, aggregated across submitted
+ * responses. Aggregate fields only: no respondent, no individual ordering.
+ * rankSum adds each respondent's 1-based position of this option (lower is
+ * better); points = itemCount * rankedCount - rankSum (higher is better)
+ * and scorePercent rescales points to 0..100 (100 = everybody ranked it
+ * first, 0 = everybody ranked it last).
+ */
+export type RankingItem = {
+  value: number;
+  label: string;
+  /** 1-based position in the most-to-least-popular order. Exactly tied
+   * items (same mean rank, same first-place count) share a number: 1, 1, 3. */
+  position: number;
+  rankSum: number;
+  rankedCount: number;
+  /** 1 dp mean rank (1 = most important), or null when nobody ranked it. */
+  meanRank: number | null;
+  firstCount: number;
+  /** % of respondents who ranked it first (half-up). */
+  firstPercent: number;
+  scorePercent: number;
+  points: number;
+};
+
 export type Slide =
   | {
       kind: "title";
@@ -86,7 +126,7 @@ export type Slide =
     }
   | {
       kind: "statement";
-      scaleKey: "agreement" | "familiarity";
+      scaleKey: PresentationScaleKey;
       statementKey: string;
       text: string;
       sectionLabel: string | null;
@@ -169,6 +209,24 @@ export type Slide =
       quote: string;
       attribution: string | null;
       respondentCount: number;
+    }
+  | {
+      kind: "ranking";
+      /** "bars": ranked bar chart (mean rank, % ranked first). "list":
+       * numbered most-to-least-popular list (the section's show_overview
+       * flag). */
+      display: "bars" | "list";
+      statementKey: string;
+      text: string;
+      sectionLabel: string | null;
+      sectionTitle: string;
+      questionNumber: number;
+      questionTotal: number;
+      isKey: boolean;
+      respondentCount: number;
+      /** Ordered most popular first (by mean rank). */
+      items: RankingItem[];
+      revealText: string | null;
     }
   | {
       kind: "familiarity-overview";
@@ -277,6 +335,18 @@ export type PresentationInput = {
     exclusive: boolean;
     answerCount: number;
     respondentCount: number;
+  }>;
+  /** Per-(statement, option) ranking aggregates, from
+   * admin_statement_rank_stats. Optional, and only loaded for rounds that
+   * contain ranking statements. */
+  rankStats?: Array<{
+    statementId: string;
+    value: number;
+    label: string;
+    respondentCount: number;
+    rankedCount: number;
+    rankSum: number;
+    firstCount: number;
   }>;
   predictionStats?: Array<{
     statementId: string;

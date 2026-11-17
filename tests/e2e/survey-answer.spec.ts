@@ -40,7 +40,7 @@ test.describe.serial("survey answer @survey-answer", () => {
     ]);
     await page.goto("/login/code");
     await page.getByLabel("6-digit code").fill(code);
-    await page.getByRole("button", { name: "Sign in" }).click();
+    // The code form submits itself once all 6 digits are in (no Sign in click).
     await expect(page).toHaveURL(/\/$/);
 
     // 2. Empty state on s1_01.

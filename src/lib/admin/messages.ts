@@ -164,6 +164,44 @@ export const ADMIN_MESSAGES = {
   noDomainsBody:
     "Add a domain so people outside the admin list can request a sign-in code.",
   accessLoadFailed: "Couldn't load the access lists. Refresh to try again.",
+
+  // Admin test mode for an unopened draft (quick task 261117-it4).
+  testHeading: "Test this session",
+  testBody:
+    "While this round is a draft, you can answer it yourself and add sample answers to see how the results will look. These test answers show in the counts, the results deck and the responses list, and are deleted when the round opens or is given a date.",
+  testTakeCta: "Test this session",
+  testAnswersCounts: (started: number, submitted: number) =>
+    `Test answers: ${started} started · ${submitted} submitted`,
+  testAnswersSuffix: " (test answers)",
+  testAddSamplesCta: "Add sample answers",
+  testClearCta: "Clear test answers",
+  testClearTitle: "Clear test answers?",
+  testClearBody:
+    "This deletes every answer on this draft round, including sample answers.",
+  testClearConfirm: "Clear test answers",
+  testActionFailed: "Couldn't update the test answers. Try again.",
+  testAnswersNotice:
+    "These are test answers. They will be deleted when this round opens.",
+  testSamplesNotListed: (n: number) =>
+    `${n} sample answer${n === 1 ? "" : "s"} ${n === 1 ? "is" : "are"} counted in the results deck but not listed here, because sample answers have no participant.`,
+  testBanner:
+    "Testing a draft round: your answers are test answers and will be deleted when the round opens.",
+  testStartAgainCta: "Start again",
+  testExitCta: "Back to round",
+  testSubmittedHeading: "Test answers submitted",
+  testSubmittedBody:
+    "Your test answers are saved. They show in the results deck until the round opens.",
+  testAnswerAgainCta: "Answer again",
+  testNotDraft:
+    "Testing is only available while a round is a draft with no open or close date.",
+  testNoQuestions: "This round has no questions yet.",
+  presentTestResults: "Present test results",
+  openNowTestTitle: "Open this round now?",
+  openNowClearsTestAnswers: (n: number) =>
+    `Opening deletes the ${n} test answer${n === 1 ? "" : "s"} on this round. Participants start with no answers.`,
+  openNowTestConfirm: "Open now and delete test answers",
+  scheduleClearsTestAnswers: (n: number) =>
+    `Saving an open or close date ends testing and deletes the ${n} test answer${n === 1 ? "" : "s"}.`,
 } as const;
 
 /**

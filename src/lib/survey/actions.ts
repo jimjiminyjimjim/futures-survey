@@ -33,6 +33,78 @@ const SaveAnswerInputSchema = z
 
 const StatementKindSchema = z.enum(QUESTION_KINDS);
 
+const TestRoundIdSchema = z.uuid().optional();
+
+type ServerSupabase = Awaited<ReturnType<typeof createClient>>;
+
+type RoundResolution =
+  | { ok: true; roundId: string }
+  | { ok: false; reason: "failed" | "not-open" };
+
+/**
+ * Which round an answer or submit is for. Live (no testRoundId): exactly
+ * the current_open_round_id() call the participant flow has always made.
+ * Admin test mode (quick task 261117-it4): the caller must be an admin and
+ * the round must still be an unopened draft (no open date and no close
+ * date); a round that is no longer a draft returns "not-open", so the
+ * client goes back to the test home, which explains. The database enforces
+ * both again (the admin-only draft RLS policies). Logs only the step name
+ * and error code/message.
+ */
+async function resolveRoundId(
+  supabase: ServerSupabase,
+  testRoundId: string | undefined,
+  step: string
+): Promise<RoundResolution> {
+  if (testRoundId === undefined) {
+    const { data: openRoundId, error: openRoundError } = await supabase.rpc(
+      "current_open_round_id"
+    );
+    if (openRoundError) {
+      console.error(`${step}: current_open_round_id failed`, {
+        code: openRoundError.code,
+        message: openRoundError.message,
+      });
+      return { ok: false, reason: "failed" };
+    }
+    if (!openRoundId) {
+      return { ok: false, reason: "not-open" };
+    }
+    return { ok: true, roundId: openRoundId as string };
+  }
+
+  const { data: isAdmin, error: adminError } = await supabase.rpc("is_admin");
+  if (adminError) {
+    console.error(`${step}: is_admin failed`, {
+      code: adminError.code,
+      message: adminError.message,
+    });
+    return { ok: false, reason: "failed" };
+  }
+  if (isAdmin !== true) {
+    return { ok: false, reason: "failed" };
+  }
+
+  const { data: draft, error: draftError } = await supabase
+    .from("rounds")
+    .select("id")
+    .eq("id", testRoundId)
+    .is("opens_at", null)
+    .is("closes_at", null)
+    .maybeSingle();
+  if (draftError) {
+    console.error(`${step}: load test round failed`, {
+      code: draftError.code,
+      message: draftError.message,
+    });
+    return { ok: false, reason: "failed" };
+  }
+  if (!draft) {
+    return { ok: false, reason: "not-open" };
+  }
+  return { ok: true, roundId: draft.id as string };
+}
+
 /**
  * Saves one answer under the signed-in participant's own RLS. Never
  * sends user_id or submitted_at — those are the DB's job (auth.uid()
@@ -44,9 +116,13 @@ export async function saveAnswer(input: {
   statementId: string;
   value?: number;
   choiceValues?: number[];
+  /** Admin test mode only: the unopened draft being tested. */
+  testRoundId?: string;
 }): Promise<SaveAnswerResult> {
-  const parsed = SaveAnswerInputSchema.safeParse(input);
-  if (!parsed.success) {
+  const { testRoundId: rawTestRoundId, ...answerInput } = input;
+  const parsed = SaveAnswerInputSchema.safeParse(answerInput);
+  const parsedTestRoundId = TestRoundIdSchema.safeParse(rawTestRoundId);
+  if (!parsed.success || !parsedTestRoundId.success) {
     return { ok: false, reason: "invalid", error: SURVEY_MESSAGES.saveFailed };
   }
   const { statementId } = parsed.data;
@@ -59,19 +135,19 @@ export async function saveAnswer(input: {
     return { ok: false, reason: "failed", error: SURVEY_MESSAGES.saveFailed };
   }
 
-  const { data: openRoundId, error: openRoundError } = await supabase.rpc(
-    "current_open_round_id"
+  const resolvedRound = await resolveRoundId(
+    supabase,
+    parsedTestRoundId.data,
+    "saveAnswer"
   );
-  if (openRoundError) {
-    console.error("saveAnswer: current_open_round_id failed", {
-      code: openRoundError.code,
-      message: openRoundError.message,
-    });
-    return { ok: false, reason: "failed", error: SURVEY_MESSAGES.saveFailed };
+  if (!resolvedRound.ok) {
+    return {
+      ok: false,
+      reason: resolvedRound.reason,
+      error: SURVEY_MESSAGES.saveFailed,
+    };
   }
-  if (!openRoundId) {
-    return { ok: false, reason: "not-open", error: SURVEY_MESSAGES.saveFailed };
-  }
+  const openRoundId = resolvedRound.roundId;
 
   const { data: statement, error: statementError } = await supabase
     .from("statements")
@@ -232,7 +308,8 @@ export type SubmitResult =
     };
 
 /**
- * Submits the signed-in participant's own response for the open round,
+ * Submits the signed-in participant's own response for the open round (or,
+ * in admin test mode, the admin's own response on the draft being tested),
  * exactly once. Never creates a response row here — an incomplete submit
  * is rejected without writing anything. The actual submitted_at value sent
  * is irrelevant: the responses_before_write trigger stamps the DB clock
@@ -240,7 +317,15 @@ export type SubmitResult =
  * name and error code/message on failure — never the answer values or
  * email (PRIV-02).
  */
-export async function submitResponse(): Promise<SubmitResult> {
+export async function submitResponse(input?: {
+  /** Admin test mode only: the unopened draft being tested. */
+  testRoundId?: string;
+}): Promise<SubmitResult> {
+  const parsedTestRoundId = TestRoundIdSchema.safeParse(input?.testRoundId);
+  if (!parsedTestRoundId.success) {
+    return { ok: false, reason: "failed", error: SURVEY_MESSAGES.submitFailed };
+  }
+
   const supabase = await createClient();
 
   const { data: claimsData } = await supabase.auth.getClaims();
@@ -249,23 +334,21 @@ export async function submitResponse(): Promise<SubmitResult> {
     return { ok: false, reason: "failed", error: SURVEY_MESSAGES.submitFailed };
   }
 
-  const { data: openRoundId, error: openRoundError } = await supabase.rpc(
-    "current_open_round_id"
+  const resolvedRound = await resolveRoundId(
+    supabase,
+    parsedTestRoundId.data,
+    "submitResponse"
   );
-  if (openRoundError) {
-    console.error("submitResponse: current_open_round_id failed", {
-      code: openRoundError.code,
-      message: openRoundError.message,
-    });
-    return { ok: false, reason: "failed", error: SURVEY_MESSAGES.submitFailed };
+  if (!resolvedRound.ok) {
+    return resolvedRound.reason === "not-open"
+      ? {
+          ok: false,
+          reason: "not-open",
+          error: SURVEY_MESSAGES.noRoundHeading,
+        }
+      : { ok: false, reason: "failed", error: SURVEY_MESSAGES.submitFailed };
   }
-  if (!openRoundId) {
-    return {
-      ok: false,
-      reason: "not-open",
-      error: SURVEY_MESSAGES.noRoundHeading,
-    };
-  }
+  const openRoundId = resolvedRound.roundId;
 
   // Only NON-optional statements count towards completeness (predictions
   // are optional) — same rule as the responses_before_write trigger.

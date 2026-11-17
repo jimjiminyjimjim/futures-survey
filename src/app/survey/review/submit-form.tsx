@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { submitResponse } from "@/lib/survey/actions";
 import { optInToResults, withdrawResultsConsent } from "@/lib/survey/consent-actions";
 import { SURVEY_MESSAGES } from "@/lib/survey/messages";
+import { useSurveyMode } from "@/components/survey/survey-mode";
 
 const OPT_IN_LABEL_ID = "results-opt-in-label";
 const OPT_IN_HELP_ID = "results-opt-in-help";
@@ -30,6 +31,7 @@ const CONSENT_STATEMENT_ID = "results-consent-statement";
  */
 export function SubmitForm({ offerOptIn }: { offerOptIn: boolean }) {
   const router = useRouter();
+  const { testRoundId, homeHref } = useSurveyMode();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // True only once optInToResults has succeeded during THIS page visit —
@@ -57,10 +59,12 @@ export function SubmitForm({ offerOptIn }: { offerOptIn: boolean }) {
           setOptedInHere(false);
         }
 
-        const result = await submitResponse();
+        const result = testRoundId
+          ? await submitResponse({ testRoundId })
+          : await submitResponse();
 
         if (result.ok || result.reason === "not-open") {
-          router.replace("/");
+          router.replace(homeHref);
           return;
         }
 

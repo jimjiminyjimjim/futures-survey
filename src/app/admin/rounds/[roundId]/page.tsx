@@ -18,6 +18,8 @@ import {
 } from "@/lib/admin/datetime";
 import { RoundScheduleForm } from "@/components/admin/round-schedule-form";
 import { RoundLifecycleActions } from "@/components/admin/round-lifecycle-actions";
+import { isUnopenedDraft } from "@/lib/unopened-draft";
+import { RoundTestActions } from "@/components/admin/round-test-actions";
 
 // This route reads cookies() (via getSignedInUser()) on every request,
 // which alone makes it dynamic under next.config.ts's cacheComponents.
@@ -67,9 +69,19 @@ export default async function RoundEditorPage({
   }
 
   const { round } = detail;
+  // Admin test mode (quick task 261117-it4): only while the round has no
+  // open date AND no close date. Every response on it is a test answer.
+  const testMode = isUnopenedDraft(round.opensAt, round.closesAt);
   // Responses live on this page (user decision 2026-10-15: "we don't need
   // another page"); /admin/rounds/[roundId]/responses now redirects here.
   const responses = await getRoundResponses(round.id);
+  // Sample answers have no participant, so the responses list (one row per
+  // participant) doesn't show them; the counts and the deck do. Say how
+  // many are missing from the list.
+  const unlistedSamples =
+    testMode && responses?.ok
+      ? Math.max(0, round.startedCount - responses.participants.length)
+      : 0;
 
   return (
     <div className="flex flex-1 flex-col items-center bg-zinc-50 px-4 py-12 dark:bg-black">
@@ -96,7 +108,11 @@ export default async function RoundEditorPage({
                   {ADMIN_MESSAGES.presentResults}
                 </Link>
               ) : null}
-              <RoundLifecycleActions roundId={round.id} status={round.status} />
+              <RoundLifecycleActions
+                roundId={round.id}
+                status={round.status}
+                testAnswerCount={testMode ? round.startedCount : 0}
+              />
             </div>
           </div>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -128,7 +144,12 @@ export default async function RoundEditorPage({
                 {ADMIN_MESSAGES.scheduleHeading}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-4">
+              {testMode && round.startedCount > 0 ? (
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                  {ADMIN_MESSAGES.scheduleClearsTestAnswers(round.startedCount)}
+                </p>
+              ) : null}
               <RoundScheduleForm
                 roundId={round.id}
                 title={round.title}
@@ -142,6 +163,42 @@ export default async function RoundEditorPage({
           </Card>
         )}
 
+        {testMode ? (
+          <section
+            aria-labelledby="test-heading"
+            className="flex flex-col gap-3 border-t pt-8"
+          >
+            <h2 id="test-heading" className="text-lg font-semibold">
+              {ADMIN_MESSAGES.testHeading}
+            </h2>
+            <p className="max-w-3xl text-sm text-zinc-600 dark:text-zinc-400">
+              {ADMIN_MESSAGES.testBody}
+            </p>
+            <p className="text-sm font-medium">
+              {ADMIN_MESSAGES.testAnswersCounts(
+                round.startedCount,
+                round.submittedCount
+              )}
+            </p>
+            <div className="flex flex-wrap items-start gap-3">
+              <Link
+                href={`/admin/rounds/${round.id}/test`}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-muted"
+              >
+                {ADMIN_MESSAGES.testTakeCta}
+              </Link>
+              <Link
+                href={`/admin/rounds/${round.id}/present`}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-muted"
+              >
+                <Presentation className="size-4" aria-hidden="true" />
+                {ADMIN_MESSAGES.presentTestResults}
+              </Link>
+            </div>
+            <RoundTestActions roundId={round.id} />
+          </section>
+        ) : null}
+
         <section
           aria-labelledby="responses-heading"
           className="flex flex-col gap-4 border-t pt-8"
@@ -151,6 +208,14 @@ export default async function RoundEditorPage({
             <h2 id="responses-heading" className="text-lg font-semibold">
               {ADMIN_MESSAGES.responsesHeading}
             </h2>
+          ) : null}
+          {testMode ? (
+            <div className="flex flex-col gap-1 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-50">
+              <p className="font-medium">{ADMIN_MESSAGES.testAnswersNotice}</p>
+              {unlistedSamples > 0 ? (
+                <p>{ADMIN_MESSAGES.testSamplesNotListed(unlistedSamples)}</p>
+              ) : null}
+            </div>
           ) : null}
           {!responses || !responses.ok ? (
             <Card>

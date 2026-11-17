@@ -1,6 +1,7 @@
 import type { ParticipantResponse } from "@/lib/admin/responses";
 import {
   isListKind,
+  isRankingKind,
   type ChoiceOption,
   type QuestionKind,
 } from "@/lib/survey/answer-rules";
@@ -35,12 +36,29 @@ export type CsvStatementColumn = {
  * unanswered/skipped; choice_multi/choice_exact/choice_up_to = the picked
  * options' labels, joined with "; " (falling back to the raw number for
  * an option whose label can't be found), or blank when nothing was
- * picked.
+ * picked; ranking = "1. X > 2. Y > …": every option's label in the
+ * participant's stored rank order (most important first), blank when
+ * unanswered.
  */
 function cellValue(
   participant: ParticipantResponse,
   statement: CsvStatementColumn
 ): string {
+  if (isRankingKind(statement.kind)) {
+    const ranked = participant.choiceAnswers?.[statement.key];
+    if (!ranked || ranked.length === 0) {
+      return "";
+    }
+    return ranked
+      .map(
+        (value, i) =>
+          `${i + 1}. ${
+            statement.options.find((o) => o.value === value)?.label ??
+            String(value)
+          }`
+      )
+      .join(" > ");
+  }
   if (isListKind(statement.kind)) {
     const picks = participant.choiceAnswers?.[statement.key];
     if (!picks || picks.length === 0) {

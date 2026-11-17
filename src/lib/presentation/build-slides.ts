@@ -18,14 +18,23 @@ import {
   ratingOptionCounts,
   averageFromCounts,
   twoEndedBuckets,
+  meanRank,
+  rankPoints,
+  rankScorePercent,
+  rankByMeanRank,
+  rankPositions,
 } from "./chart-math";
-import type {
-  PresentationInput,
-  PresentationStatement,
-  Slide,
-  OptionCount,
-  DeckStep,
-  DeckSectionHeading,
+import { displaySectionLabel } from "@/lib/section-label";
+import {
+  isPresentationScaleKey,
+  type PresentationInput,
+  type PresentationScaleKey,
+  type PresentationStatement,
+  type RankingItem,
+  type Slide,
+  type OptionCount,
+  type DeckStep,
+  type DeckSectionHeading,
 } from "./types";
 
 export type BuildSlidesResult = {
@@ -33,13 +42,21 @@ export type BuildSlidesResult = {
   respondentCount: number;
 };
 
-/** "2a" -> "2"; "11b" -> "11"; "4" -> "4". Used to render the small
+/** "2a" -> "2"; "11b" -> "11"; "4" -> "4"; "B1" -> "B" (a capital letter
+ * followed by a digit, as in Session 2's B1/B2). Used to render the small
  * parent line ("2. What is design?") above a subsection's own heading. */
 function parentLabelOf(label: string | null): string | null {
   if (!label) {
     return null;
   }
-  return label.match(/^[0-9]+/)?.[0] ?? null;
+  return label.match(/^[0-9]+/)?.[0] ?? label.match(/^([A-Z])[0-9]/)?.[1] ?? null;
+}
+
+function requireScaleKey(key: string): PresentationScaleKey {
+  if (!isPresentationScaleKey(key)) {
+    throw new Error(`buildSlides: unknown scale key "${key}"`);
+  }
+  return key;
 }
 
 /** Splits a discussion_prompt like
@@ -80,6 +97,34 @@ export function buildSlides(input: PresentationInput): BuildSlidesResult {
     predictionStats.map((p) => [p.statementId, p])
   );
 
+  const rankStatsByStatement = new Map<
+    string,
+    NonNullable<PresentationInput["rankStats"]>
+  >();
+  for (const r of input.rankStats ?? []) {
+    const list = rankStatsByStatement.get(r.statementId) ?? [];
+    list.push(r);
+    rankStatsByStatement.set(r.statementId, list);
+  }
+
+  /** A ranking statement's per-option aggregates. Falls back to its own
+   * options with zero counts when no stats rows were loaded. */
+  const rankRowsOf = (statement: PresentationStatement) => {
+    const rows = rankStatsByStatement.get(statement.id);
+    if (rows && rows.length > 0) {
+      return rows;
+    }
+    return (statement.options ?? []).map((o) => ({
+      statementId: statement.id,
+      value: o.value,
+      label: o.label,
+      respondentCount: 0,
+      rankedCount: 0,
+      rankSum: 0,
+      firstCount: 0,
+    }));
+  };
+
   const statementTextById = new Map<string, string>();
   for (const section of sections) {
     for (const statement of section.statements) {
@@ -111,10 +156,8 @@ export function buildSlides(input: PresentationInput): BuildSlidesResult {
   >();
 
   for (const section of sortedSections) {
-    if (section.scaleKey !== "agreement" && section.scaleKey !== "familiarity") {
-      throw new Error(`buildSlides: unknown scale key "${section.scaleKey}"`);
-    }
-    const scaleOpts = optionsByScale.get(section.scaleKey) ?? [];
+    const scaleKey = requireScaleKey(section.scaleKey);
+    const scaleOpts = optionsByScale.get(scaleKey) ?? [];
     for (const statement of section.statements) {
       const kind = statement.kind ?? "scale";
       if (kind === "scale") {
@@ -135,6 +178,9 @@ export function buildSlides(input: PresentationInput): BuildSlidesResult {
       ) {
         const rows = choiceCountsByStatement.get(statement.id) ?? [];
         const respondentTotal = rows[0]?.respondentCount ?? 0;
+        maxStatementTotal = Math.max(maxStatementTotal, respondentTotal);
+      } else if (kind === "ranking") {
+        const respondentTotal = rankRowsOf(statement)[0]?.respondentCount ?? 0;
         maxStatementTotal = Math.max(maxStatementTotal, respondentTotal);
       } else if (kind === "rating" || kind === "two_ended") {
         // rating/two_ended totals come from the same widened
@@ -162,9 +208,11 @@ export function buildSlides(input: PresentationInput): BuildSlidesResult {
   ];
 
   for (const section of sortedSections) {
-    const label = section.label ?? null;
+    const rawLabel = section.label ?? null;
+    // B1 / B2 are two parts of one question and both read as "B".
+    const label = displaySectionLabel(rawLabel);
     const parentTitle = section.parentTitle ?? null;
-    const parentLabel = parentTitle ? parentLabelOf(label) : null;
+    const parentLabel = parentTitle ? parentLabelOf(rawLabel) : null;
 
     slides.push({
       kind: "section-intro",
@@ -180,6 +228,7 @@ export function buildSlides(input: PresentationInput): BuildSlidesResult {
       (a, b) => a.sortOrder - b.sortOrder
     );
     const questionTotal = sortedStatements.length;
+    const sectionScaleKey = requireScaleKey(section.scaleKey);
 
     sortedStatements.forEach((statement, idx) => {
       const questionNumber = idx + 1;
@@ -190,7 +239,7 @@ export function buildSlides(input: PresentationInput): BuildSlidesResult {
         const data = scaleStatementData.get(statement.id)!;
         slides.push({
           kind: "statement",
-          scaleKey: section.scaleKey as "agreement" | "familiarity",
+          scaleKey: sectionScaleKey,
           statementKey: statement.key,
           text: statement.text,
           sectionLabel: label,
@@ -239,6 +288,47 @@ export function buildSlides(input: PresentationInput): BuildSlidesResult {
         return;
       }
 
+      if (kind === "ranking") {
+        const rows = rankRowsOf(statement);
+        const itemCount = rows.length;
+        const respondentTotal = rows[0]?.respondentCount ?? 0;
+        const sortedRows: Omit<RankingItem, "position">[] = rankByMeanRank(
+          rows.map((r) => ({
+            value: r.value,
+            label: r.label,
+            rankSum: r.rankSum,
+            rankedCount: r.rankedCount,
+            meanRank: meanRank(r.rankSum, r.rankedCount),
+            firstCount: r.firstCount,
+            firstPercent: optionPercent(r.firstCount, r.respondentCount),
+            scorePercent: rankScorePercent(r.rankSum, r.rankedCount, itemCount),
+            points: rankPoints(r.rankSum, r.rankedCount, itemCount),
+          }))
+        );
+        // Exactly tied items (same mean rank and same first-place count)
+        // share a position number: 1, 1, 3.
+        const positions = rankPositions(sortedRows);
+        const items: RankingItem[] = sortedRows.map((item, i) => ({
+          ...item,
+          position: positions[i],
+        }));
+        slides.push({
+          kind: "ranking",
+          display: section.showOverview === true ? "list" : "bars",
+          statementKey: statement.key,
+          text: statement.text,
+          sectionLabel: label,
+          sectionTitle: section.title,
+          questionNumber,
+          questionTotal,
+          isKey,
+          respondentCount: respondentTotal,
+          items,
+          revealText: statement.revealText ?? null,
+        });
+        return;
+      }
+
       if (kind === "rating") {
         const byValue = scaleCountsByStatement.get(statement.id) ?? new Map();
         const options = ratingOptionCounts(byValue);
@@ -249,7 +339,13 @@ export function buildSlides(input: PresentationInput): BuildSlidesResult {
           text: statement.text,
           itemLabel: statement.label ?? null,
           context: statement.context ?? null,
-          leadIn: statement.question ? null : section.prompt,
+          // A prompt that only repeats the section title (Session 2's D) is
+          // not shown a second time above the statement.
+          leadIn:
+            statement.question ||
+            section.prompt.trim() === section.title.trim()
+              ? null
+              : section.prompt,
           question: statement.question ?? null,
           sectionLabel: label,
           sectionTitle: section.title,
@@ -344,7 +440,9 @@ export function buildSlides(input: PresentationInput): BuildSlidesResult {
       slides.push({
         kind: "familiarity-overview",
         sectionSortOrder: section.sortOrder,
-        ...(section.label !== undefined ? { sectionLabel: section.label } : {}),
+        ...(section.label !== undefined
+          ? { sectionLabel: displaySectionLabel(section.label) }
+          : {}),
         respondentCount,
         terms: rankByExplainPercent(terms),
       });
@@ -381,7 +479,9 @@ export function buildSlides(input: PresentationInput): BuildSlidesResult {
       slides.push({
         kind: "rating-overview",
         sectionSortOrder: section.sortOrder,
-        ...(section.label !== undefined ? { sectionLabel: section.label } : {}),
+        ...(section.label !== undefined
+          ? { sectionLabel: displaySectionLabel(section.label) }
+          : {}),
         sectionTitle: section.title,
         respondentCount: sectionRespondentCount,
         items: rankByMeanFamiliarity(items),
@@ -396,6 +496,7 @@ const RESULTS_SLIDE_KINDS = new Set<Slide["kind"]>([
   "statement",
   "choice",
   "rating",
+  "ranking",
   "two-ended",
   "prediction",
   "familiarity-overview",

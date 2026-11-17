@@ -140,7 +140,8 @@ type QuestionKind =
   | "prediction"
   | "rating"
   | "two_ended"
-  | "choice_up_to";
+  | "choice_up_to"
+  | "ranking";
 
 interface ChoiceOption {
   value: number;
@@ -338,6 +339,16 @@ function sampleTwoEnded(s: StatementRow, userIndex: number): number {
  * weighted sample, without replacement, of 1..choiceCount non-exclusive
  * options, sorted ascending.
  */
+/** A deterministic full ranking: the option values rotated by userIndex. */
+function sampleRanking(s: StatementRow, userIndex: number): number[] {
+  const values = s.options.map((o) => o.value);
+  if (values.length === 0) {
+    return values;
+  }
+  const shift = userIndex % values.length;
+  return [...values.slice(shift), ...values.slice(0, shift)];
+}
+
 function sampleChoiceUpTo(s: StatementRow, userIndex: number): number[] {
   const rng = rngFor(`choice-up-to:${s.key}:${userIndex}`);
   const exclusive = s.options.find((o) => o.exclusive);
@@ -521,6 +532,8 @@ function answerRowFor(
       return { value: sampleTwoEnded(s, userIndex), choice_values: null };
     case "choice_up_to":
       return { value: null, choice_values: sampleChoiceUpTo(s, userIndex) };
+    case "ranking":
+      return { value: null, choice_values: sampleRanking(s, userIndex) };
   }
 }
 

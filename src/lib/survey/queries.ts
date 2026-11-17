@@ -166,48 +166,78 @@ function errorSnapshot(): SurveySnapshot {
  */
 const SURVEY_PARTS = 3;
 
+const ROUND_SNAPSHOT_COLUMNS =
+  "id, title, session_number, intro, surveys(title), sections(id, sort_order, title, prompt, scale_key, label, parent_title, grouped, statements(id, key, sort_order, text, kind, options, choice_count, optional, prediction_of, label, context, question, left_label, right_label))";
+
+/**
+ * `testRoundId` (admin test mode, quick task 261117-it4): when set, the
+ * snapshot is for THAT round instead of the open one, and `openRound` means
+ * "the draft being tested". The round only loads while it is still an
+ * unopened draft (no open date and no close date); otherwise openRound is
+ * null. RLS lets only admins read a draft round's content. The response
+ * query is the same as live: the signed-in user's own row for the round.
+ * With testRoundId null (the default) the live queries are unchanged.
+ */
 export const getSurveySnapshot = cache(
-  async (userId: string): Promise<SurveySnapshot> => {
+  async (
+    userId: string,
+    testRoundId: string | null = null
+  ): Promise<SurveySnapshot> => {
     const supabase = await createClient();
 
-    // One retry: a transient failure (seen in dev as an error object with no
-    // code/message) shouldn't drop the participant onto the error screen.
-    let { data: openRoundId, error: openRoundError } = await supabase.rpc(
-      "current_open_round_id"
-    );
-    if (openRoundError) {
-      ({ data: openRoundId, error: openRoundError } = await supabase.rpc(
-        "current_open_round_id"
-      ));
-    }
+    let openRoundId: string | null = testRoundId;
 
-    if (openRoundError) {
-      const e = openRoundError as unknown as Record<string, unknown>;
-      console.error("getSurveySnapshot: current_open_round_id failed", {
-        name: e.name,
-        code: e.code,
-        message: e.message,
-        details: e.details,
-        hint: e.hint,
-        status: e.status,
-        raw: String(openRoundError),
-      });
-      return errorSnapshot();
+    if (testRoundId === null) {
+      // One retry: a transient failure (seen in dev as an error object with no
+      // code/message) shouldn't drop the participant onto the error screen.
+      let { data: liveRoundId, error: openRoundError } = await supabase.rpc(
+        "current_open_round_id"
+      );
+      if (openRoundError) {
+        ({ data: liveRoundId, error: openRoundError } = await supabase.rpc(
+          "current_open_round_id"
+        ));
+      }
+
+      if (openRoundError) {
+        const e = openRoundError as unknown as Record<string, unknown>;
+        console.error("getSurveySnapshot: current_open_round_id failed", {
+          name: e.name,
+          code: e.code,
+          message: e.message,
+          details: e.details,
+          hint: e.hint,
+          status: e.status,
+          raw: String(openRoundError),
+        });
+        return errorSnapshot();
+      }
+
+      openRoundId = liveRoundId ?? null;
     }
 
     if (!openRoundId) {
       return emptySnapshot();
     }
 
+    const roundQuery =
+      testRoundId === null
+        ? supabase
+            .from("rounds")
+            .select(ROUND_SNAPSHOT_COLUMNS)
+            .eq("id", openRoundId)
+            .maybeSingle()
+        : supabase
+            .from("rounds")
+            .select(ROUND_SNAPSHOT_COLUMNS)
+            .eq("id", openRoundId)
+            .is("opens_at", null)
+            .is("closes_at", null)
+            .maybeSingle();
+
     const [roundResult, scaleOptionsResult, responseResult] =
       await Promise.all([
-        supabase
-          .from("rounds")
-          .select(
-            "id, title, session_number, intro, surveys(title), sections(id, sort_order, title, prompt, scale_key, label, parent_title, grouped, statements(id, key, sort_order, text, kind, options, choice_count, optional, prediction_of, label, context, question, left_label, right_label))"
-          )
-          .eq("id", openRoundId)
-          .maybeSingle(),
+        roundQuery,
         supabase
           .from("scale_options")
           .select("scale_key, value, label")
@@ -356,18 +386,29 @@ export const getSurveySnapshot = cache(
 export type ResultsConsentSnapshot = { optedIn: boolean; hasError: boolean };
 
 /**
- * Server-only. Reads the signed-in participant's own results_consent row
- * (RLS limits this to their own row). Logs only the code/message on
+ * Server-only. Reads the signed-in participant's own consent for ONE
+ * session (results_consent_rounds, keyed by user and round; RLS limits this
+ * to their own rows). Consent is per session, so a null roundId (no open
+ * session) is simply "not opted in". Session 1's legacy per-person
+ * results_consent table is never read here. Logs only the code/message on
  * failure (PRIV-02).
  */
 export const getResultsConsent = cache(
-  async (userId: string): Promise<ResultsConsentSnapshot> => {
+  async (
+    userId: string,
+    roundId: string | null
+  ): Promise<ResultsConsentSnapshot> => {
+    if (!roundId) {
+      return { optedIn: false, hasError: false };
+    }
+
     const supabase = await createClient();
 
     const { data, error } = await supabase
-      .from("results_consent")
+      .from("results_consent_rounds")
       .select("consented")
       .eq("user_id", userId)
+      .eq("round_id", roundId)
       .maybeSingle();
 
     if (error) {

@@ -53,13 +53,14 @@ test.describe.serial("access guards @access", () => {
 
     const alert = page.locator('p[role="alert"]');
 
+    // A partial code doesn't submit itself, so Sign in is clicked here.
     await page.getByLabel("6-digit code").fill("12ab");
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(alert).toHaveText(AUTH_MESSAGES.invalidCodeFormat);
     await expect(page).toHaveURL(/\/login\/code$/);
 
+    // The code form submits itself once all 6 digits are in (no Sign in click).
     await page.getByLabel("6-digit code").fill("000000");
-    await page.getByRole("button", { name: "Sign in" }).click();
     await expect(alert).toHaveText(AUTH_MESSAGES.codeRejected);
     await expect(page).toHaveURL(/\/login\/code$/);
   });
@@ -82,7 +83,7 @@ test.describe.serial("access guards @access", () => {
 
     await page.goto("/login/code");
     await page.getByLabel("6-digit code").fill(code);
-    await page.getByRole("button", { name: "Sign in" }).click();
+    // The code form submits itself once all 6 digits are in (no Sign in click).
     await expect(page).toHaveURL(/\/$/);
 
     await page.goto("/admin");
@@ -115,7 +116,7 @@ test.describe.serial("access guards @access", () => {
 
     await page.goto("/login/code");
     await page.getByLabel("6-digit code").fill(code);
-    await page.getByRole("button", { name: "Sign in" }).click();
+    // The code form submits itself once all 6 digits are in (no Sign in click).
     await expect(page).toHaveURL(/\/$/);
 
     await page.goto("/admin/anything");
