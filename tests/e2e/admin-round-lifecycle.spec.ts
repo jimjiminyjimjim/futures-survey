@@ -144,7 +144,7 @@ test.describe.serial("admin round lifecycle @admin-round-lifecycle", () => {
       opens: "2020-01-01T09:00",
       closes: "",
       message:
-        "Choose an open date and time in the future, or use Open now.",
+        "Choose an open date and time in the future, or use Go live.",
     });
 
     // Closes in the past, opens left empty.

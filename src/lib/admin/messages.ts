@@ -93,13 +93,13 @@ export const ADMIN_MESSAGES = {
     "These dates overlap another round's — only one round can be open at a time.",
   roundClosed: "This round has closed and can't be changed.",
   opensLocked: "This round has opened — its open date can't be changed.",
-  opensInPast: "Choose an open date and time in the future, or use Open now.",
+  opensInPast: "Choose an open date and time in the future, or use Go live.",
   closesInPast: "Choose a close date and time in the future.",
   datesOrder: "The close date must be after the open date.",
   roundClosedNote: "This round has closed. Its dates can no longer be changed.",
 
-  // Open now / Close early (RND-06).
-  openNow: "Open now",
+  // Go live (openNow) / Close early (RND-06).
+  openNow: "Go live",
   presentResults: "Present results",
   closeEarly: "Close round now",
   closeRoundTitle: "Close this round now?",
@@ -196,10 +196,10 @@ export const ADMIN_MESSAGES = {
     "Testing is only available while a round is a draft with no open or close date.",
   testNoQuestions: "This round has no questions yet.",
   presentTestResults: "Present test results",
-  openNowTestTitle: "Open this round now?",
+  openNowTestTitle: "Go live with this round?",
   openNowClearsTestAnswers: (n: number) =>
-    `Opening deletes the ${n} test answer${n === 1 ? "" : "s"} on this round. Participants start with no answers.`,
-  openNowTestConfirm: "Open now and delete test answers",
+    `Going live deletes the ${n} test answer${n === 1 ? "" : "s"} on this round. Participants start with no answers.`,
+  openNowTestConfirm: "Go live and delete test answers",
   scheduleClearsTestAnswers: (n: number) =>
     `Saving an open or close date ends testing and deletes the ${n} test answer${n === 1 ? "" : "s"}.`,
 } as const;
